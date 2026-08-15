@@ -1,0 +1,12 @@
+package icky
+
+version = 0.1.0
+brief = "The syntax front end for ICK"
+sourcedir = "src"
+
+modules = Glyph,
+          Diagnostic,
+          Token,
+          Scan,
+          Syntax,
+          Parse

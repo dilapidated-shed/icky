@@ -1,0 +1,14 @@
+package icky-tests
+
+sourcedir = "src"
+
+modules = Glyph,
+          Diagnostic,
+          Token,
+          Scan,
+          Syntax,
+          Parse,
+          Tests
+
+main = Tests
+executable = icky-tests
