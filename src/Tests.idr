@@ -51,9 +51,16 @@ main = do
     "42"
     (one [NounPiece (NaturalNoun 42)])
 
-  assertParses "glyph before noun"
+  assertParses "act-first prefix-shaped order is preserved"
     "⌖ image"
     (one [GlyphPiece Target, NounPiece (NameNoun "image")])
+
+  assertParses "value-first pipeline-shaped order is preserved"
+    "image · resize"
+    (one [ NounPiece (NameNoun "image")
+         , GlyphPiece MiddleDot
+         , NounPiece (NameNoun "resize")
+         ])
 
   assertParses "source order is preserved"
     "← ↥ image"
