@@ -34,10 +34,12 @@ Eq Noun where
 
 mutual
   public export
+  covering
   Eq Expr where
     (MkExpr a) == (MkExpr b) = a == b
 
   public export
+  covering
   Eq Piece where
     (NounPiece a) == (NounPiece b) = a == b
     (GlyphPiece a) == (GlyphPiece b) = a == b
@@ -45,6 +47,7 @@ mutual
     _ == _ = False
 
 public export
+covering
 Eq Program where
   (MkProgram a) == (MkProgram b) = a == b
 
@@ -55,21 +58,25 @@ Show Noun where
 
 mutual
   private
+  covering
   showPieces : List Piece -> String
   showPieces [] = ""
   showPieces [piece] = show piece
   showPieces (piece :: pieces) = show piece ++ " " ++ showPieces pieces
 
   public export
+  covering
   Show Expr where
     show (MkExpr pieces) = showPieces pieces
 
   public export
+  covering
   Show Piece where
     show (NounPiece noun) = show noun
     show (GlyphPiece glyph) = show glyph
     show (GroupPiece expr) = "(" ++ show expr ++ ")"
 
 public export
+covering
 Show Program where
   show (MkProgram expressions) = show expressions
