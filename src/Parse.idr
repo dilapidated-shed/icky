@@ -7,6 +7,12 @@ import Syntax
 import Token
 
 
+public export
+record ParseResult where
+  constructor MkParseResult
+  program : Program
+  warnings : List Diagnostic
+
 private
 record SequenceResult where
   constructor MkSequenceResult
@@ -107,8 +113,18 @@ parseProgram tokens expressions diagnostics =
         _ => parseProgram rest (expr :: expressions) allDiagnostics
 
 public export
+parseWithWarnings : String -> Either (List Diagnostic) ParseResult
+parseWithWarnings source =
+  case scanWithWarnings source of
+    Left diagnostics => Left diagnostics
+    Right (MkScanResult tokens warnings) =>
+      case parseProgram tokens [] [] of
+        Left diagnostics => Left diagnostics
+        Right program => Right (MkParseResult program warnings)
+
+public export
 parse : String -> Either (List Diagnostic) Program
 parse source =
-  case scan source of
+  case parseWithWarnings source of
     Left diagnostics => Left diagnostics
-    Right tokens => parseProgram tokens [] []
+    Right (MkParseResult program warnings) => Right program
