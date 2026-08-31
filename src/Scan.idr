@@ -23,12 +23,12 @@ isLetter : Char -> Bool
 isLetter c = elem c (unpack "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 private
-isDigit : Char -> Bool
-isDigit c = elem c (unpack "0123456789")
+isDecimalDigit : Char -> Bool
+isDecimalDigit c = elem c (unpack "0123456789")
 
 private
 isNameTail : Char -> Bool
-isNameTail c = isLetter c || isDigit c || c == '_'
+isNameTail c = isLetter c || isDecimalDigit c || c == '_'
 
 private
 digitValue : Char -> Nat
@@ -136,9 +136,9 @@ scanChars position (c :: cs) tokens diagnostics warnings =
                        MkRun tail rest end = consumeWhile isNameTail next cs
                        token = MkToken (TName (pack (c :: tail))) (MkSpan position end)
                     in scanChars end rest (token :: tokens) diagnostics warnings
-           else if isDigit c
+            else if isDecimalDigit c
               then let next = advance position c
-                       MkRun tail rest end = consumeWhile isDigit next cs
+                       MkRun tail rest end = consumeWhile isDecimalDigit next cs
                        token = MkToken (TNatural (digitsToNat (c :: tail))) (MkSpan position end)
                     in scanChars end rest (token :: tokens) diagnostics warnings
            else let next = advance position c
