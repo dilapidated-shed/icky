@@ -31,6 +31,14 @@ assertParses name source expected =
     Left diagnostics => fail (name ++ " — parse failed: " ++ show diagnostics)
 
 private
+assertParsesWithWarning : String -> String -> Program -> IO ()
+assertParsesWithWarning name source expected =
+  case parseWithWarnings source of
+    Right (MkParseResult actual (_ :: _)) => assert name (actual == expected)
+    Right (MkParseResult actual []) => fail (name ++ " — expected a warning")
+    Left diagnostics => fail (name ++ " — parse failed: " ++ show diagnostics)
+
+private
 assertFails : String -> String -> IO ()
 assertFails name source =
   case parse source of
@@ -62,16 +70,64 @@ main = do
          , NounPiece (NameNoun "resize")
          ])
 
+  assertParses "composition ring is preserved"
+    "f ∘ g"
+    (one [ NounPiece (NameNoun "f")
+         , GlyphPiece Composition
+         , NounPiece (NameNoun "g")
+         ])
+
+  assertParses "arrow directions are paired"
+    "← → ⇐ ⇒ ↥ ↧ image"
+    (one [ GlyphPiece LeftArrow
+         , GlyphPiece RightArrow
+         , GlyphPiece DoubleLeftArrow
+         , GlyphPiece DoubleRightArrow
+         , GlyphPiece UpArrow
+         , GlyphPiece DownArrow
+         , NounPiece (NameNoun "image")
+         ])
+
+  assertParsesWithWarning "ASCII fat arrow remains accepted"
+    "result => next"
+    (one [ NounPiece (NameNoun "result")
+         , GlyphPiece DoubleRightArrow
+         , NounPiece (NameNoun "next")
+         ])
+
+  assertParsesWithWarning "ASCII pipeline remains accepted"
+    "image |> resize"
+    (one [ NounPiece (NameNoun "image")
+         , GlyphPiece MiddleDot
+         , NounPiece (NameNoun "resize")
+         ])
+
+  assertParsesWithWarning "Magrittr pipeline remains accepted"
+    "image %>% resize"
+    (one [ NounPiece (NameNoun "image")
+         , GlyphPiece MiddleDot
+         , NounPiece (NameNoun "resize")
+         ])
+
   assertParses "source order is preserved"
     "← ↥ image"
     (one [GlyphPiece LeftArrow, GlyphPiece UpArrow,
           NounPiece (NameNoun "image")])
 
   assertParses "all source glyphs are preserved"
-    "← = ⌖ ↥ · image"
-    (one [GlyphPiece LeftArrow, GlyphPiece Equals, GlyphPiece Target,
-          GlyphPiece UpArrow, GlyphPiece MiddleDot,
-          NounPiece (NameNoun "image")])
+    "← → ⇐ ⇒ = ⌖ ↥ ↧ · ∘ image"
+    (one [ GlyphPiece LeftArrow
+         , GlyphPiece RightArrow
+         , GlyphPiece DoubleLeftArrow
+         , GlyphPiece DoubleRightArrow
+         , GlyphPiece Equals
+         , GlyphPiece Target
+         , GlyphPiece UpArrow
+         , GlyphPiece DownArrow
+         , GlyphPiece MiddleDot
+         , GlyphPiece Composition
+         , NounPiece (NameNoun "image")
+         ])
 
   assertParses "comment runs to newline"
     "⌖ image ⍝ ignored\nother"

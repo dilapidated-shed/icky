@@ -5,6 +5,12 @@ import Glyph
 import Token
 
 
+public export
+record ScanResult where
+  constructor MkScanResult
+  tokens : List Token
+  warnings : List Diagnostic
+
 private
 advance : Position -> Char -> Position
 advance (MkPosition offset line column) '\n' =
@@ -17,12 +23,12 @@ isLetter : Char -> Bool
 isLetter c = elem c (unpack "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 private
-isDigit : Char -> Bool
-isDigit c = elem c (unpack "0123456789")
+isDecimalDigit : Char -> Bool
+isDecimalDigit c = elem c (unpack "0123456789")
 
 private
 isNameTail : Char -> Bool
-isNameTail c = isLetter c || isDigit c || c == '_'
+isNameTail c = isLetter c || isDecimalDigit c || c == '_'
 
 private
 digitValue : Char -> Nat
@@ -68,55 +74,85 @@ skipComment position input@(c :: cs) =
      else skipComment (advance position c) cs
 
 private
-scanChars : Position -> List Char -> List Token -> List Diagnostic ->
-            Either (List Diagnostic) (List Token)
-scanChars position [] tokens diagnostics =
+scanChars : Position -> List Char -> List Token -> List Diagnostic -> List Diagnostic ->
+            Either (List Diagnostic) ScanResult
+scanChars position [] tokens diagnostics warnings =
   let eof = MkToken TEOF (MkSpan position position)
       allTokens = reverse (eof :: tokens)
       allDiagnostics = reverse diagnostics
+      allWarnings = reverse warnings
    in case allDiagnostics of
-        [] => Right allTokens
+        [] => Right (MkScanResult allTokens allWarnings)
         _ => Left allDiagnostics
-scanChars position (c :: cs) tokens diagnostics =
+scanChars position ('=' :: '>' :: cs) tokens diagnostics warnings =
+  let afterEquals = advance position '='
+      next = advance afterEquals '>'
+      span = MkSpan position next
+      token = MkToken (TGlyph DoubleRightArrow) span
+      warning = MkDiagnostic span "ASCII '=>' accepted; prefer '⇒'"
+   in scanChars next cs (token :: tokens) diagnostics (warning :: warnings)
+scanChars position ('|' :: '>' :: cs) tokens diagnostics warnings =
+  let afterBar = advance position '|'
+      next = advance afterBar '>'
+      span = MkSpan position next
+      token = MkToken (TGlyph MiddleDot) span
+      warning = MkDiagnostic span "ASCII '|>' accepted; prefer '·'"
+   in scanChars next cs (token :: tokens) diagnostics (warning :: warnings)
+scanChars position ('%' :: '>' :: '%' :: cs) tokens diagnostics warnings =
+  let afterPercent = advance position '%'
+      afterGreater = advance afterPercent '>'
+      next = advance afterGreater '%'
+      span = MkSpan position next
+      token = MkToken (TGlyph MiddleDot) span
+      warning = MkDiagnostic span "Magrittr '%>%' accepted; prefer '·'"
+   in scanChars next cs (token :: tokens) diagnostics (warning :: warnings)
+scanChars position (c :: cs) tokens diagnostics warnings =
   if c == ' ' || c == '\t' || c == '\r'
-     then scanChars (advance position c) cs tokens diagnostics
+     then scanChars (advance position c) cs tokens diagnostics warnings
   else if c == '\n'
      then let next = advance position c
               token = MkToken TNewline (MkSpan position next)
-           in scanChars next cs (token :: tokens) diagnostics
+           in scanChars next cs (token :: tokens) diagnostics warnings
   else if c == '⍝'
      then let afterMarker = advance position c
               (rest, next) = skipComment afterMarker cs
-           in scanChars next rest tokens diagnostics
+           in scanChars next rest tokens diagnostics warnings
   else if c == '('
      then let next = advance position c
               token = MkToken TLParen (MkSpan position next)
-           in scanChars next cs (token :: tokens) diagnostics
+           in scanChars next cs (token :: tokens) diagnostics warnings
   else if c == ')'
      then let next = advance position c
               token = MkToken TRParen (MkSpan position next)
-           in scanChars next cs (token :: tokens) diagnostics
+           in scanChars next cs (token :: tokens) diagnostics warnings
   else case glyphFromChar c of
          Just glyph =>
            let next = advance position c
                token = MkToken (TGlyph glyph) (MkSpan position next)
-            in scanChars next cs (token :: tokens) diagnostics
+            in scanChars next cs (token :: tokens) diagnostics warnings
          Nothing =>
            if isLetter c || c == '_'
               then let next = advance position c
                        MkRun tail rest end = consumeWhile isNameTail next cs
                        token = MkToken (TName (pack (c :: tail))) (MkSpan position end)
-                    in scanChars end rest (token :: tokens) diagnostics
-           else if isDigit c
+                    in scanChars end rest (token :: tokens) diagnostics warnings
+            else if isDecimalDigit c
               then let next = advance position c
-                       MkRun tail rest end = consumeWhile isDigit next cs
+                       MkRun tail rest end = consumeWhile isDecimalDigit next cs
                        token = MkToken (TNatural (digitsToNat (c :: tail))) (MkSpan position end)
-                    in scanChars end rest (token :: tokens) diagnostics
+                    in scanChars end rest (token :: tokens) diagnostics warnings
            else let next = advance position c
                     diagnostic = MkDiagnostic (MkSpan position next)
                                     ("unexpected character " ++ show (pack [c]))
-                 in scanChars next cs tokens (diagnostic :: diagnostics)
+                 in scanChars next cs tokens (diagnostic :: diagnostics) warnings
+
+public export
+scanWithWarnings : String -> Either (List Diagnostic) ScanResult
+scanWithWarnings source = scanChars (MkPosition 0 1 1) (unpack source) [] [] []
 
 public export
 scan : String -> Either (List Diagnostic) (List Token)
-scan source = scanChars (MkPosition 0 1 1) (unpack source) [] []
+scan source =
+  case scanWithWarnings source of
+    Left diagnostics => Left diagnostics
+    Right (MkScanResult tokens warnings) => Right tokens
