@@ -2,7 +2,10 @@ package icky-tests
 
 sourcedir = "src"
 
-modules = Glyph,
+modules = Source,
+          Glyph,
+          Name,
+          Decimal,
           Diagnostic,
           Token,
           Scan,

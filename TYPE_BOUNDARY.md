@@ -75,8 +75,22 @@ This makes every `Expr` nonempty and noun-ending by construction while retaining
 source order and glyph identity. `exprFromPieces` is the checked bridge from an
 ordinary list. The parser may use a private, unchecked candidate form while
 recovering and collecting diagnostics, but that form is not part of the public
-successful tree. `Program` remains a possibly-empty list because empty source
-already parses successfully.
+successful tree. Candidate recovery tracks noun-ending shape separately from
+whether a complete valid `Expr` can be built, so an invalid earlier subgroup
+does not cause a spurious noun-last error on an otherwise noun-ending outer
+group. `Program` remains a possibly-empty list because empty source already
+parses successfully.
 
 No type in this boundary assigns application direction, glyph meaning, arity,
 precedence, normalization, or any other ICK/Idriç semantic rule.
+
+## Deliberately unencoded invariants
+
+`Program` remains possibly empty because empty source is accepted. Natural
+values remain `Nat` because every inhabitant has a decimal spelling. Spans do
+not carry an ordering proof, and token lists do not carry a proof that the EOF
+sentinel occurs exactly once at the end. Encoding either proof would add a
+second indexed sequence API without changing any successful syntax ICKY
+returns; the scanner and parser keep those checks procedural for now. Numeric
+leading zeroes also remain unpreserved, matching the existing tree rather than
+quietly changing the language's source-preservation contract.

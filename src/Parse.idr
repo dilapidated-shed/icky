@@ -3,6 +3,7 @@ module Parse
 import Diagnostic
 import Glyph
 import Scan
+import Source
 import Syntax
 import Token
 
@@ -11,88 +12,123 @@ public export
 record ParseResult where
   constructor MkParseResult
   program : Program
-  warnings : List Diagnostic
+  warnings : List WarningDiagnostic
+
+private
+data SequenceContext = TopLevel | InsideGroup
+
+private
+data ParsedEnding = EndsWithNoun | DoesNotEndWithNoun
+
+private
+data ParsedPiece
+  = ParsedNoun Noun
+  | ParsedGlyph Glyph
+  | ParsedGroup ParsedEnding (Maybe Expr)
 
 private
 record SequenceResult where
   constructor MkSequenceResult
-  pieces : List Piece
+  pieces : List ParsedPiece
   rest : List Token
-  diagnostics : List Diagnostic
+  diagnostics : List FatalDiagnostic
 
 private
-lastPiece : List Piece -> Maybe Piece
-lastPiece [] = Nothing
-lastPiece [piece] = Just piece
-lastPiece (_ :: pieces) = lastPiece pieces
+lastParsedPiece : List ParsedPiece -> Maybe ParsedPiece
+lastParsedPiece [] = Nothing
+lastParsedPiece [piece] = Just piece
+lastParsedPiece (_ :: pieces) = lastParsedPiece pieces
 
-mutual
-  private
-  endsInNoun : Expr -> Bool
-  endsInNoun (MkExpr pieces) =
-    case lastPiece pieces of
-      Just (NounPiece _) => True
-      Just (GroupPiece expr) => endsInNoun expr
-      _ => False
+private
+parsedEnding : List ParsedPiece -> ParsedEnding
+parsedEnding pieces =
+  case lastParsedPiece pieces of
+    Just (ParsedNoun _) => EndsWithNoun
+    Just (ParsedGroup ending expression) => ending
+    _ => DoesNotEndWithNoun
 
-  private
-  validateNounLast : Span -> Expr -> List Diagnostic
-  validateNounLast boundary expr =
-    if endsInNoun expr
-       then []
-       else [MkDiagnostic boundary "expression must end in a noun"]
+private
+validateNounLast : Span -> List ParsedPiece -> List FatalDiagnostic
+validateNounLast boundary pieces =
+  case parsedEnding pieces of
+    EndsWithNoun => []
+    DoesNotEndWithNoun => [MkDiagnostic boundary ExpressionMustEndInNoun]
+
+private
+parsedPiece : ParsedPiece -> Maybe Piece
+parsedPiece (ParsedNoun noun) = Just (NounPiece noun)
+parsedPiece (ParsedGlyph glyph) = Just (GlyphPiece glyph)
+parsedPiece (ParsedGroup ending (Just expression)) = Just (GroupPiece expression)
+parsedPiece (ParsedGroup ending Nothing) = Nothing
+
+private
+parsedPieces : List ParsedPiece -> Maybe (List Piece)
+parsedPieces [] = Just []
+parsedPieces (piece :: rest) =
+  case (parsedPiece piece, parsedPieces rest) of
+    (Just converted, Just convertedRest) => Just (converted :: convertedRest)
+    _ => Nothing
+
+private
+parsedExpression : List ParsedPiece -> Maybe Expr
+parsedExpression pieces =
+  case parsedPieces pieces of
+    Just converted => exprFromPieces converted
+    Nothing => Nothing
 
 private
 boundarySpan : List Token -> Span
-boundarySpan [] =
-  let position = MkPosition 0 1 1 in MkSpan position position
+boundarySpan [] = pointSpan sourceStart
 boundarySpan (MkToken _ span :: _) = span
 
 mutual
   private
-  parseSequence : Bool -> List Token -> SequenceResult
-  parseSequence inGroup [] = MkSequenceResult [] [] []
-  parseSequence inGroup tokens@(MkToken TEOF span :: rest) =
+  parseSequence : SequenceContext -> List Token -> SequenceResult
+  parseSequence context [] = MkSequenceResult [] [] []
+  parseSequence context tokens@(MkToken TEOF span :: rest) =
     MkSequenceResult [] tokens []
-  parseSequence True tokens@(MkToken TRParen span :: rest) =
+  parseSequence InsideGroup tokens@(MkToken TRParen span :: rest) =
     MkSequenceResult [] tokens []
-  parseSequence False tokens@(MkToken TNewline span :: rest) =
+  parseSequence TopLevel tokens@(MkToken TNewline span :: rest) =
     MkSequenceResult [] tokens []
-  parseSequence True (MkToken TNewline span :: rest) =
-    parseSequence True rest
-  parseSequence False (MkToken TRParen span :: rest) =
-    let MkSequenceResult pieces remaining diagnostics = parseSequence False rest
-        unexpected = MkDiagnostic span "unexpected ')'"
+  parseSequence InsideGroup (MkToken TNewline span :: rest) =
+    parseSequence InsideGroup rest
+  parseSequence TopLevel (MkToken TRParen span :: rest) =
+    let MkSequenceResult pieces remaining diagnostics = parseSequence TopLevel rest
+        unexpected = MkDiagnostic span UnexpectedCloseParenthesis
      in MkSequenceResult pieces remaining (unexpected :: diagnostics)
-  parseSequence inGroup (MkToken TLParen openSpan :: rest) =
-    let MkSequenceResult inside afterInside insideDiagnostics = parseSequence True rest
-        innerExpr = MkExpr inside
+  parseSequence context (MkToken TLParen openSpan :: rest) =
+    let MkSequenceResult inside afterInside insideDiagnostics =
+          parseSequence InsideGroup rest
         boundary = boundarySpan afterInside
-        nounDiagnostics = validateNounLast boundary innerExpr
+        nounDiagnostics = validateNounLast boundary inside
+        innerEnding = parsedEnding inside
+        innerExpression = parsedExpression inside
      in case afterInside of
           MkToken TRParen closeSpan :: afterClose =>
             let MkSequenceResult following remaining followingDiagnostics =
-                  parseSequence inGroup afterClose
-             in MkSequenceResult (GroupPiece innerExpr :: following)
+                  parseSequence context afterClose
+             in MkSequenceResult (ParsedGroup innerEnding innerExpression :: following)
                   remaining (insideDiagnostics ++ nounDiagnostics ++ followingDiagnostics)
           _ =>
-            let missing = MkDiagnostic openSpan "missing ')'"
+            let missing = MkDiagnostic openSpan MissingCloseParenthesis
                 MkSequenceResult following remaining followingDiagnostics =
-                  parseSequence inGroup afterInside
-             in MkSequenceResult (GroupPiece innerExpr :: following)
+                  parseSequence context afterInside
+             in MkSequenceResult (ParsedGroup innerEnding innerExpression :: following)
                   remaining (insideDiagnostics ++ nounDiagnostics ++ [missing] ++ followingDiagnostics)
-  parseSequence inGroup (MkToken (TName name) span :: rest) =
-    let MkSequenceResult pieces remaining diagnostics = parseSequence inGroup rest
-     in MkSequenceResult (NounPiece (NameNoun name) :: pieces) remaining diagnostics
-  parseSequence inGroup (MkToken (TNatural n) span :: rest) =
-    let MkSequenceResult pieces remaining diagnostics = parseSequence inGroup rest
-     in MkSequenceResult (NounPiece (NaturalNoun n) :: pieces) remaining diagnostics
-  parseSequence inGroup (MkToken (TGlyph glyph) span :: rest) =
-    let MkSequenceResult pieces remaining diagnostics = parseSequence inGroup rest
-     in MkSequenceResult (GlyphPiece glyph :: pieces) remaining diagnostics
+  parseSequence context (MkToken (TName name) span :: rest) =
+    let MkSequenceResult pieces remaining diagnostics = parseSequence context rest
+     in MkSequenceResult (ParsedNoun (NameNoun name) :: pieces) remaining diagnostics
+  parseSequence context (MkToken (TNatural n) span :: rest) =
+    let MkSequenceResult pieces remaining diagnostics = parseSequence context rest
+     in MkSequenceResult (ParsedNoun (NaturalNoun n) :: pieces) remaining diagnostics
+  parseSequence context (MkToken (TGlyph glyph) span :: rest) =
+    let MkSequenceResult pieces remaining diagnostics = parseSequence context rest
+     in MkSequenceResult (ParsedGlyph glyph :: pieces) remaining diagnostics
 
 private
-parseProgram : List Token -> List Expr -> List Diagnostic -> Either (List Diagnostic) Program
+parseProgram : List Token -> List Expr -> List FatalDiagnostic ->
+               Either (List FatalDiagnostic) Program
 parseProgram [] expressions diagnostics =
   case reverse diagnostics of
     [] => Right (MkProgram (reverse expressions))
@@ -104,16 +140,17 @@ parseProgram (MkToken TEOF span :: rest) expressions diagnostics =
 parseProgram (MkToken TNewline span :: rest) expressions diagnostics =
   parseProgram rest expressions diagnostics
 parseProgram tokens expressions diagnostics =
-  let MkSequenceResult pieces rest sequenceDiagnostics = parseSequence False tokens
-      expr = MkExpr pieces
-      nounDiagnostics = validateNounLast (boundarySpan rest) expr
+  let MkSequenceResult pieces rest sequenceDiagnostics = parseSequence TopLevel tokens
+      expression = parsedExpression pieces
+      nounDiagnostics = validateNounLast (boundarySpan rest) pieces
       allDiagnostics = reverse nounDiagnostics ++ reverse sequenceDiagnostics ++ diagnostics
-   in case pieces of
-        [] => parseProgram rest expressions allDiagnostics
-        _ => parseProgram rest (expr :: expressions) allDiagnostics
+   in case (pieces, expression) of
+        ([], _) => parseProgram rest expressions allDiagnostics
+        (_, Just expr) => parseProgram rest (expr :: expressions) allDiagnostics
+        (_, Nothing) => parseProgram rest expressions allDiagnostics
 
 public export
-parseWithWarnings : String -> Either (List Diagnostic) ParseResult
+parseWithWarnings : String -> Either (List FatalDiagnostic) ParseResult
 parseWithWarnings source =
   case scanWithWarnings source of
     Left diagnostics => Left diagnostics
@@ -123,7 +160,7 @@ parseWithWarnings source =
         Right program => Right (MkParseResult program warnings)
 
 public export
-parse : String -> Either (List Diagnostic) Program
+parse : String -> Either (List FatalDiagnostic) Program
 parse source =
   case parseWithWarnings source of
     Left diagnostics => Left diagnostics

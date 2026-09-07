@@ -1,47 +1,121 @@
 module Diagnostic
 
+import Glyph
+import Source
+
 %default total
 
 public export
-record Position where
-  constructor MkPosition
-  offset : Nat
-  line : Nat
-  column : Nat
+data Severity = Fatal | Warning
 
 public export
-record Span where
-  constructor MkSpan
-  start : Position
-  end : Position
+data CompatibilitySpelling
+  = AsciiFatArrow
+  | AsciiPipeline
+  | MagrittrPipeline
 
 public export
-record Diagnostic where
+data DiagnosticKind : Severity -> Type where
+  UnexpectedCharacter : Char -> DiagnosticKind Fatal
+  UnexpectedCloseParenthesis : DiagnosticKind Fatal
+  MissingCloseParenthesis : DiagnosticKind Fatal
+  ExpressionMustEndInNoun : DiagnosticKind Fatal
+  CompatibilitySpellingWarning : CompatibilitySpelling -> DiagnosticKind Warning
+
+public export
+record Diagnostic (severity : Severity) where
   constructor MkDiagnostic
   span : Span
-  message : String
+  kind : DiagnosticKind severity
 
 public export
-Eq Position where
-  (MkPosition ao al ac) == (MkPosition bo bl bc) =
-    ao == bo && al == bl && ac == bc
+FatalDiagnostic : Type
+FatalDiagnostic = Diagnostic Fatal
 
 public export
-Eq Span where
-  (MkSpan as ae) == (MkSpan bs be) = as == bs && ae == be
+WarningDiagnostic : Type
+WarningDiagnostic = Diagnostic Warning
 
 public export
-Eq Diagnostic where
-  (MkDiagnostic as am) == (MkDiagnostic bs bm) = as == bs && am == bm
+diagnosticSeverity : {severity : Severity} -> Diagnostic severity -> Severity
+diagnosticSeverity {severity} diagnostic = severity
 
 public export
-Show Position where
-  show (MkPosition _ line column) = show line ++ ":" ++ show column
+compatibilityText : CompatibilitySpelling -> String
+compatibilityText AsciiFatArrow = "=>"
+compatibilityText AsciiPipeline = "|>"
+compatibilityText MagrittrPipeline = "%>%"
 
 public export
-Show Span where
-  show (MkSpan start end) = show start ++ "-" ++ show end
+compatibilityGlyph : CompatibilitySpelling -> Glyph
+compatibilityGlyph AsciiFatArrow = DoubleRightArrow
+compatibilityGlyph AsciiPipeline = MiddleDot
+compatibilityGlyph MagrittrPipeline = MiddleDot
 
 public export
-Show Diagnostic where
-  show (MkDiagnostic span message) = show span ++ ": " ++ message
+renderDiagnosticKind : DiagnosticKind severity -> String
+renderDiagnosticKind (UnexpectedCharacter c) =
+  "unexpected character " ++ show (pack [c])
+renderDiagnosticKind UnexpectedCloseParenthesis = "unexpected ')'"
+renderDiagnosticKind MissingCloseParenthesis = "missing ')'"
+renderDiagnosticKind ExpressionMustEndInNoun = "expression must end in a noun"
+renderDiagnosticKind (CompatibilitySpellingWarning spelling) =
+  let written = compatibilityText spelling
+      preferred = pack [glyphChar (compatibilityGlyph spelling)]
+   in case spelling of
+        MagrittrPipeline =>
+          "Magrittr '" ++ written ++ "' accepted; prefer '" ++ preferred ++ "'"
+        _ =>
+          "ASCII '" ++ written ++ "' accepted; prefer '" ++ preferred ++ "'"
+
+public export
+diagnosticMessage : Diagnostic severity -> String
+diagnosticMessage (MkDiagnostic _ kind) = renderDiagnosticKind kind
+
+public export
+renderDiagnostic : Diagnostic severity -> String
+renderDiagnostic diagnostic =
+  show diagnostic.span ++ ": " ++ diagnosticMessage diagnostic
+
+public export
+Eq Severity where
+  Fatal == Fatal = True
+  Warning == Warning = True
+  _ == _ = False
+
+public export
+Eq CompatibilitySpelling where
+  AsciiFatArrow == AsciiFatArrow = True
+  AsciiPipeline == AsciiPipeline = True
+  MagrittrPipeline == MagrittrPipeline = True
+  _ == _ = False
+
+public export
+Eq (DiagnosticKind severity) where
+  (UnexpectedCharacter a) == (UnexpectedCharacter b) = a == b
+  UnexpectedCloseParenthesis == UnexpectedCloseParenthesis = True
+  MissingCloseParenthesis == MissingCloseParenthesis = True
+  ExpressionMustEndInNoun == ExpressionMustEndInNoun = True
+  (CompatibilitySpellingWarning a) == (CompatibilitySpellingWarning b) = a == b
+  _ == _ = False
+
+public export
+Eq (Diagnostic severity) where
+  (MkDiagnostic as ak) == (MkDiagnostic bs bk) = as == bs && ak == bk
+
+public export
+Show Severity where
+  show Fatal = "fatal"
+  show Warning = "warning"
+
+public export
+Show CompatibilitySpelling where
+  show = compatibilityText
+
+public export
+Show (DiagnosticKind severity) where
+  show = renderDiagnosticKind
+
+public export
+Show (Diagnostic severity) where
+  show = renderDiagnostic
