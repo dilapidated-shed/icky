@@ -5,7 +5,7 @@ parser for ick (y-y-yacc replacement, hence the y)
 ICKY turns source text into a small, semantic-neutral syntax tree. It recognizes
 names, natural numbers, grouping, line comments, and the source glyphs:
 
-    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘  ÷  ×  √  ²  ³  ≠  ≟  λ  ∞  –
+    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘  ÷  ×  √  ²  ³  ≠  ≟  λ  ∞  −  –
 
 `⍝` starts a comment that runs to the end of the line.
 
