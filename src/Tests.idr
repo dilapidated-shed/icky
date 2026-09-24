@@ -115,7 +115,7 @@ main = do
           NounPiece (NameNoun "image")])
 
   assertParses "all source glyphs are preserved"
-    "← → ⇐ ⇒ = ⌖ ↥ ↧ · ∘ image"
+    "← → ⇐ ⇒ = ⌖ ↥ ↧ · ∘ ÷ × √ ² ³ ≠ ≟ λ ∞ – image"
     (one [ GlyphPiece LeftArrow
          , GlyphPiece RightArrow
          , GlyphPiece DoubleLeftArrow
@@ -126,6 +126,16 @@ main = do
          , GlyphPiece DownArrow
          , GlyphPiece MiddleDot
          , GlyphPiece Composition
+         , GlyphPiece Division
+         , GlyphPiece Multiplication
+         , GlyphPiece SquareRoot
+         , GlyphPiece SuperscriptTwo
+         , GlyphPiece SuperscriptThree
+         , GlyphPiece NotEqual
+         , GlyphPiece DecidableEqual
+         , GlyphPiece Lambda
+         , GlyphPiece Infinity
+         , GlyphPiece EnDash
          , NounPiece (NameNoun "image")
          ])
 
