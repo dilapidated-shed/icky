@@ -5,7 +5,7 @@ parser for ick (y-y-yacc replacement, hence the y)
 ICKY turns source text into a small, semantic-neutral syntax tree. It recognizes
 names, natural numbers, grouping, line comments, and the source glyphs:
 
-    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘  ÷  ×  √  ²  ³
+    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘  ÷  ×  √  ²  ³  ≠  ≟  λ  ∞  –
 
 `⍝` starts a comment that runs to the end of the line.
 
@@ -46,7 +46,7 @@ read older C-family source without changing what that source says.
 For ordinary mathematical source, prefer the written mathematical glyph rather
 than an ASCII programming substitute:
 
-    ÷  ×  √  ²  ³
+    ÷  ×  √  ²  ³  ≠  ≟  λ  ∞  –
 
 In particular, division is written `÷`, not `/`, and multiplication is
 written `×` when multiplication is meant. Superscript powers such as `²` and
