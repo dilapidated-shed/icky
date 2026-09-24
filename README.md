@@ -5,7 +5,7 @@ parser for ick (y-y-yacc replacement, hence the y)
 ICKY turns source text into a small, semantic-neutral syntax tree. It recognizes
 names, natural numbers, grouping, line comments, and the source glyphs:
 
-    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘
+    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘  ÷  ×  √  ²  ³
 
 `⍝` starts a comment that runs to the end of the line.
 
@@ -40,6 +40,19 @@ Aliases are token-aware rather than global text substitutions. In particular,
 ICKY does not repurpose existing C operators such as `->`, `<=`, `>=`, `<<`, or
 `>>` as arrow aliases. That distinction is necessary for the planned ability to
 read older C-family source without changing what that source says.
+
+## Mathematical surface
+
+For ordinary mathematical source, prefer the written mathematical glyph rather
+than an ASCII programming substitute:
+
+    ÷  ×  √  ²  ³
+
+In particular, division is written `÷`, not `/`, and multiplication is
+written `×` when multiplication is meant. Superscript powers such as `²` and
+`³` remain visibly powers rather than being rewritten as punctuation-heavy
+ASCII notation. ICKY's job is still only to preserve the surface glyph and its
+position; meaning and precedence belong downstream.
 
 ## Direction and composition
 
