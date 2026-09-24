@@ -23,6 +23,7 @@ data Glyph
   | DecidableEqual
   | Lambda
   | Infinity
+  | Minus
   | EnDash
 
 public export
@@ -46,6 +47,7 @@ glyphChar NotEqual = '≠'
 glyphChar DecidableEqual = '≟'
 glyphChar Lambda = 'λ'
 glyphChar Infinity = '∞'
+glyphChar Minus = '−'
 glyphChar EnDash = '–'
 
 public export
@@ -69,6 +71,7 @@ glyphFromChar '≠' = Just NotEqual
 glyphFromChar '≟' = Just DecidableEqual
 glyphFromChar 'λ' = Just Lambda
 glyphFromChar '∞' = Just Infinity
+glyphFromChar '−' = Just Minus
 glyphFromChar '–' = Just EnDash
 glyphFromChar _ = Nothing
 
@@ -103,6 +106,7 @@ Eq Glyph where
   DecidableEqual == DecidableEqual = True
   Lambda == Lambda = True
   Infinity == Infinity = True
+  Minus == Minus = True
   EnDash == EnDash = True
   _ == _ = False
 
