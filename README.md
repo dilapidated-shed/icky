@@ -5,7 +5,7 @@ parser for ick (y-y-yacc replacement, hence the y)
 ICKY turns source text into a small, semantic-neutral syntax tree. It recognizes
 names, natural numbers, grouping, line comments, and the source glyphs:
 
-    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘
+    ←  →  ⇐  ⇒  =  ⌖  ↥  ↧  ·  ∘  ÷  ×  √  ²  ³  ≠  ≟  λ  ∞  −  –
 
 `⍝` starts a comment that runs to the end of the line.
 
@@ -91,3 +91,7 @@ Tests:
 The final command verifies that direct construction across the opaque-name,
 decimal-digit, coordinate, diagnostic-severity, and successful-expression
 boundaries is rejected by the compiler for the intended reason.
+
+## Mathematical glyph preservation
+
+The mathematical glyphs `÷ × √ ² ³ ≠ ≟ λ ∞ − –` are preserved distinctly. Mathematical minus and en dash are separate tokens. This adds surface identity only: meaning, precedence, and normalization remain downstream.
