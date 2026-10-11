@@ -71,5 +71,58 @@ jobs:
         with:
           name: icky-located-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
           path: build/qualification/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
+
+  independent-evidence:
+    name: Independent AICI receipt validation for located ICKY
+    needs: located-parser
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the same ICKY commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Download original ICKY executable and test receipts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: icky-located-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: evidence
+
+      - name: Bind executable receipt to exact source and pinned Idriç
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          test "$source_sha" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -d "evidence/located-$source_sha"
+          mv "evidence/located-$source_sha" evidence/receipt
+          test "$(cat evidence/receipt/icky-source-sha.txt)" = "$source_sha"
+          test "$(cat evidence/receipt/idric-source-sha-declared.txt)" = '2734ac5a86610eddfab73b1644d72b4ac85a65ee'
+          grep -Fx 'Idris 2, version 0.8.0-2734ac5a8' evidence/receipt/idric-version.txt
+          test "$(grep -c '^ok:' evidence/receipt/icky-tests.log)" -eq 58
+          test "$(grep -c '^ok: tests/rejected/' evidence/receipt/type-refusals.log)" -eq 5
+          test "$(wc -l < evidence/receipt/executables.sha256)" -eq 2
+          (cd evidence/receipt && sha256sum -c executables.sha256)
+          test -s evidence/receipt/idric-executable.sha256
+
+      - name: Independently evaluate the immutable acceptance contract
+        uses: isomorphisms/ai-ci@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        with:
+          suite: .github/ai-ci/located-receipt.suite.tsv
+
+      - name: Require AICI to reject a forged success receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp evidence/receipt/parser-protocol.log "$RUNNER_TEMP/parser-protocol-original.log"
+          printf '%s\n' 'PROTOCOL CHECK SKIPPED' > evidence/receipt/parser-protocol.log
+          if "$RUNNER_TEMP/aici" suite .github/ai-ci/located-receipt.suite.tsv . \
+            > "$RUNNER_TEMP/aici-forged-receipt.log" 2>&1; then
+            echo 'AICI accepted a forged ICKY protocol result' >&2
+            exit 1
+          fi
+          grep -F 'ICKY-PROTOCOL-PASS' "$RUNNER_TEMP/aici-forged-receipt.log"
+          cp "$RUNNER_TEMP/parser-protocol-original.log" evidence/receipt/parser-protocol.log

@@ -82,6 +82,12 @@ test -s "$receipt/icky-tests.log"
 test -s "$receipt/type-refusals.log"
 grep -Fx 'ICKY parser protocol: identity, UTF-8, warning and rejection PASS' \
   "$receipt/parser-protocol.log" >/dev/null
+
+# The independent consumer must verify the actual executable bytes, not only
+# producer-owned SHA-256 strings or success-labelled logs.
+mkdir -p "$receipt/build/exec"
+cp build/exec/icky-tests build/exec/icky-parser "$receipt/build/exec/"
+(cd "$receipt" && sha256sum -c executables.sha256)
 printf '%s\n' 'LOCAL_PASS (AICI acceptance still required)' > "$receipt/status.txt"
 printf 'Local ICKY parser qualification passed for %s\n' "$source_revision"
 printf 'Receipts: %s\n' "$receipt"

@@ -1,0 +1,25 @@
+# Producer vs independent consumer: actual ICKY parser executable and typed AST
+nonempty	ICKY-RECEIPT-SOURCE	evidence/receipt/icky-source-sha.txt
+nonempty	ICKY-RECEIPT-TOOLCHAIN	evidence/receipt/idric-source-sha-declared.txt
+nonempty	ICKY-RECEIPT-COMPILER-HASH	evidence/receipt/idric-executable.sha256
+nonempty	ICKY-RECEIPT-TEST-HASHES	evidence/receipt/executables.sha256
+nonempty	ICKY-RECEIPT-PARSER-EXEC	evidence/receipt/build/exec/icky-parser
+nonempty	ICKY-RECEIPT-TEST-EXEC	evidence/receipt/build/exec/icky-tests
+nonempty	ICKY-RECEIPT-LIBRARY-BUILD	evidence/receipt/icky-build.log
+nonempty	ICKY-RECEIPT-TESTS-BUILD	evidence/receipt/tests-build.log
+nonempty	ICKY-RECEIPT-PARSER-BUILD	evidence/receipt/parser-build.log
+contains	ICKY-PARSER-EXEC-BUILT	evidence/receipt/parser-build.log	Now compiling the executable: icky-parser
+contains	ICKY-TEST-EXEC-BUILT	evidence/receipt/tests-build.log	Now compiling the executable: icky-tests
+contains	ICKY-GROUP-SPAN-PASS	evidence/receipt/icky-tests.log	ok: group retains full parentheses separately from inner AST
+contains	ICKY-UNICODE-SPAN-PASS	evidence/receipt/icky-tests.log	ok: source offsets continue to count Unicode characters
+contains	ICKY-ERASURE-PASS	evidence/receipt/icky-tests.log	ok: located erasure exactly matches legacy parse and warnings
+contains	ICKY-ALIAS-PASS	evidence/receipt/icky-tests.log	ok: compatibility token retains its actual written span
+contains	ICKY-C-ARROW-REFUSAL	evidence/receipt/icky-tests.log	ok: located invalid C thin-arrow matches legacy
+contains	ICKY-STRUCTURED-FAILURE	evidence/receipt/icky-tests.log	ok: invalid source produces only deterministic fatal protocol records
+contains	ICKY-TYPE-OPAQUE-NAME	evidence/receipt/type-refusals.log	ArbitraryName.idr rejected at its intended type boundary
+contains	ICKY-TYPE-OPAQUE-EXPR	evidence/receipt/type-refusals.log	InvalidExpression.idr rejected at its intended type boundary
+contains	ICKY-PROTOCOL-PASS	evidence/receipt/parser-protocol.log	ICKY parser protocol: identity, UTF-8, warning and rejection PASS
+contains	ICKY-PRODUCER-LOCAL-PASS	evidence/receipt/status.txt	LOCAL_PASS (AICI acceptance still required)
+not_contains	ICKY-NO-POSITIVE-FAILURES	evidence/receipt/icky-tests.log	FAIL:
+not_contains	ICKY-NO-TYPE-FAILURES	evidence/receipt/type-refusals.log	FAIL:
+not_contains	ICKY-NO-PROTOCOL-FAILURES	evidence/receipt/parser-protocol.log	FAIL:
