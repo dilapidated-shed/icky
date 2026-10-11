@@ -3,6 +3,7 @@ module Tests
 import Decimal
 import Diagnostic
 import Glyph
+import Located
 import Name
 import Parse
 import Scan
@@ -183,6 +184,82 @@ assertUnicodePosition =
     Right tokens => fail ("Unicode position — unexpectedly scanned: " ++ show tokens)
 
 private
+assertLocatedSyntax : IO ()
+assertLocatedSyntax = do
+  let source = "← image\n⌖ (↥ image)\nimage |> resize"
+  case parseLocatedWithWarnings source of
+    Left diagnostics => fail ("located parse failed: " ++ show diagnostics)
+    Right (MkLocatedParseResult located warnings) =>
+      case located of
+        MkLocatedProgram [ first, grouped, compatibility ] => do
+          case first of
+            MkLocatedExpr whole
+              [LocatedGlyph arrowSpan LeftArrow]
+              (LocatedFinalNoun nounSpan (NameNoun name)) =>
+                assert "glyph/noun and expression spans retain literal positions"
+                  (spanIs arrowSpan 0 1 1 1 1 2 &&
+                   spanIs nounSpan 2 1 3 7 1 8 &&
+                   spanIs whole 0 1 1 7 1 8 &&
+                   nameText name == "image")
+            _ => fail "located first expression lost typed pieces"
+
+          case grouped of
+            MkLocatedExpr whole
+              [LocatedGlyph symbolSpan Target]
+              (LocatedFinalGroup groupSpan inner) =>
+                case inner of
+                  MkLocatedExpr innerSpan
+                    [LocatedGlyph upSpan UpArrow]
+                    (LocatedFinalNoun nameSpan (NameNoun name)) =>
+                      assert "group retains full parentheses separately from inner AST"
+                        (spanIs symbolSpan 8 2 1 9 2 2 &&
+                         spanIs groupSpan 10 2 3 19 2 12 &&
+                         spanIs innerSpan 11 2 4 18 2 11 &&
+                         spanIs upSpan 11 2 4 12 2 5 &&
+                         spanIs nameSpan 13 2 6 18 2 11 &&
+                         spanIs whole 8 2 1 19 2 12 &&
+                         nameText name == "image")
+                  _ => fail "nested group lost located child pieces"
+            _ => fail "located second expression lost a grouped final piece"
+
+          case compatibility of
+            MkLocatedExpr whole
+              [LocatedNoun firstSpan (NameNoun firstName),
+               LocatedGlyph aliasSpan MiddleDot]
+              (LocatedFinalNoun lastSpan (NameNoun lastName)) =>
+                assert "compatibility token retains its actual written span"
+                  (spanIs firstSpan 20 3 1 25 3 6 &&
+                   spanIs aliasSpan 26 3 7 28 3 9 &&
+                   spanIs lastSpan 29 3 10 35 3 16 &&
+                   spanIs whole 20 3 1 35 3 16 &&
+                   nameText firstName == "image" &&
+                   nameText lastName == "resize")
+            _ => fail "located third expression lost compatibility token"
+
+          case warnings of
+            [MkDiagnostic span (CompatibilitySpellingWarning AsciiPipeline)] =>
+              assert "located warnings keep scanner spans"
+                (spanIs span 26 3 7 28 3 9)
+            _ => fail "located parse changed the structured warning"
+
+          case (parse source, parseWithWarnings source) of
+            (Right prior, Right (MkParseResult priorWithWarnings priorWarnings)) =>
+              assert "located erasure exactly matches legacy parse and warnings"
+                (eraseLocatedProgram located == prior &&
+                 prior == priorWithWarnings &&
+                 warnings == priorWarnings)
+            _ => fail "located change rejected legacy-valid source"
+        _ => fail "located parser changed expression count or source order"
+
+private
+assertLocatedRefusal : String -> String -> IO ()
+assertLocatedRefusal name source =
+  case (parseLocated source, parse source) of
+    (Left locatedDiagnostics, Left legacyDiagnostics) =>
+      assert name (locatedDiagnostics == legacyDiagnostics)
+    _ => fail (name ++ " — located and legacy rejection disagree")
+
+private
 isAbsent : Maybe a -> Bool
 isAbsent Nothing = True
 isAbsent (Just value) = False
@@ -347,3 +424,7 @@ main = do
 
   assertSourcePosition
   assertUnicodePosition
+  assertLocatedSyntax
+  assertLocatedRefusal "located invalid glyph suffix matches legacy" "image ⌖"
+  assertLocatedRefusal "located invalid C thin-arrow matches legacy" "image -> resize"
+  assertLocatedRefusal "located malformed group matches legacy" "(⌖ image"
