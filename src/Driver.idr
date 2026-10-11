@@ -1,5 +1,6 @@
 module Driver
 
+import Diagnostic
 import Parse
 import Protocol
 import System
