@@ -55,3 +55,24 @@ tests and an exact toolchain receipt before accepting this source change.
 The [ICK bootstrap correction PR #89](https://github.com/dilapidated-shed/ick/pull/89)
 separately isolates Bison/Yacc and retains Flex for GCC's `gengtype`. Those
 two projects are not equivalent just because both contain parsers.
+
+## Exact-head execution qualification
+
+The fail-closed `tests/qualify-located.sh` runner expects `IDRIC` to be an
+absolute path to the chosen Idriç executable and `IDRIC_SOURCE_SHA` to name
+its exact source revision. It refuses dirty tracked ICKY source or missing
+compiler/toolchain metadata. It builds the library, tests and parser through
+that executable, runs the original tests, negative type-boundary checks and
+the `icky-parser` identity/parse/failure protocol tests.
+
+The runner stores input source SHA, **declared** Idriç source revision, actual
+compiler executable path/hash/version, produced binary hashes and complete
+test logs under `build/qualification/located-<ICKY_SOURCE_SHA>/`; it refuses
+to overwrite a previous receipt. Its `LOCAL_PASS` means only that these
+programs executed under the specified local compiler. The compiler source
+revision remains declared until independently bound to the executable; AICI
+must independently check identities and execution traces before delivering
+or merging anything.
+
+As of this source change, the qualification runner itself has **NOT_RUN**
+status: the current environment lacks a qualified Idriç compiler executable.
