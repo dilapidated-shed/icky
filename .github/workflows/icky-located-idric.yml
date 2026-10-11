@@ -1,0 +1,75 @@
+name: ICKY located parser through pinned Idriç
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  located-parser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout exact ICKY source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Checkout pinned source of canonical Idriç compiler
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphisms/Idric
+          ref: 2734ac5a86610eddfab73b1644d72b4ac85a65ee
+          path: .idric-host
+          persist-credentials: false
+
+      - name: Verify exact source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -C .idric-host rev-parse HEAD)" = "2734ac5a86610eddfab73b1644d72b4ac85a65ee"
+          git status --porcelain --untracked-files=no
+
+      - name: Install explicitly required Idriç bootstrap host tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl python3 util-linux
+
+      - name: Build canonical pinned Idriç compiler through its own entrypoint
+        shell: bash
+        run: |
+          set -euxo pipefail
+          (
+            cd .idric-host
+            ./edric bootstrap
+            ./edric test --only idris2/basic/edric001
+            test -x build/exec/idris2
+            build/exec/idris2 --version
+          )
+          printf '%s\n' "$GITHUB_WORKSPACE/.idric-host/.tools/bin" >> "$GITHUB_PATH"
+
+      - name: Run exact-head ICKY tests with the actual built Idriç
+        shell: bash
+        env:
+          IDRIC: ${{ github.workspace }}/.idric-host/build/exec/idris2
+          IDRIC_SOURCE_SHA: 2734ac5a86610eddfab73b1644d72b4ac85a65ee
+          IDRIC_PREFIX: ${{ github.workspace }}/.idric-host/_/build/env
+        run: |
+          set -euxo pipefail
+          sh tests/qualify-located.sh
+          cat "build/qualification/located-$(git rev-parse HEAD)/status.txt"
+
+      - name: Retain source, toolchain, executable and test receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: icky-located-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: build/qualification/
+          if-no-files-found: warn
+          retention-days: 14

@@ -4,9 +4,13 @@ version = 0.1.0
 brief = "The syntax front end for ICK"
 sourcedir = "src"
 
-modules = Glyph,
+modules = Source,
+          Glyph,
+          Name,
+          Decimal,
           Diagnostic,
           Token,
           Scan,
           Syntax,
+          Located,
           Parse

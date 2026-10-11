@@ -1,5 +1,7 @@
-package icky-tests
+package icky-parser
 
+version = 0.1.0
+brief = "Versioned located syntax-tree producer for ICK"
 sourcedir = "src"
 
 modules = Source,
@@ -13,7 +15,7 @@ modules = Source,
           Located,
           Parse,
           Protocol,
-          Tests
+          Driver
 
-main = Tests
-executable = icky-tests
+main = Driver
+executable = icky-parser
