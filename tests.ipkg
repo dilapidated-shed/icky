@@ -10,6 +10,7 @@ modules = Source,
           Token,
           Scan,
           Syntax,
+          Located,
           Parse,
           Tests
 
