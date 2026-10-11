@@ -92,6 +92,35 @@ The final command verifies that direct construction across the opaque-name,
 decimal-digit, coordinate, diagnostic-severity, and successful-expression
 boundaries is rejected by the compiler for the intended reason.
 
+## Located compiler-consumer boundary (under qualification)
+
+The retained typed-parser branch now has an opt-in located syntax tree and a
+versioned protocol for an eventual ICK consumer. The existing `parse` and
+`parseWithWarnings` APIs are unchanged.
+
+```text
+idris2 --build icky-parser.ipkg
+./build/exec/icky-parser --identity
+./build/exec/icky-parser --parse SOURCE_FILE
+sh tests/check-parser-protocol.sh
+```
+
+Use the **qualified Idriç compiler** for the `idris2` command rather than
+silently selecting another interpreter or backend. The command block specifies
+the package entrypoint, not evidence that the source is already compiled on
+the current head. The parser reads an explicitly supplied file (including
+multiple lines), prints deterministic tab-separated `ICKY-LOCATED` records,
+and returns nonzero for unsupported syntax or input-file failures.
+
+[LOCATED_BOUNDARY.md](LOCATED_BOUNDARY.md) specifies source spans, nested
+groups, compatibility warnings, successful-tree erasure, and the explicitly
+missing GCC preprocessing/UTF-8-byte-offset/source-map integration.
+
+**Current qualification:** these are source changes and tests awaiting an
+exact-head Idriç build, executable proof and independent AICI acceptance.
+Do not treat ICKY's grammar as general C or a replacement for GCC's
+independently retained `gengtype` generator.
+
 ## Mathematical glyph preservation
 
 The mathematical glyphs `÷ × √ ² ³ ≠ ≟ λ ∞ − –` are preserved distinctly. Mathematical minus and en dash are separate tokens. This adds surface identity only: meaning, precedence, and normalization remain downstream.
