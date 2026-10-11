@@ -1,9 +1,6 @@
 name: ICKY located parser through pinned Idriç
 
 on:
-  push:
-    branches:
-      - stricter-types
   pull_request:
   workflow_dispatch:
 
@@ -62,6 +59,7 @@ jobs:
         env:
           IDRIC: ${{ github.workspace }}/.idric-host/build/exec/idris2
           IDRIC_SOURCE_SHA: 2734ac5a86610eddfab73b1644d72b4ac85a65ee
+          IDRIC_PREFIX: ${{ github.workspace }}/.idric-host/_/build/env
         run: |
           set -euxo pipefail
           sh tests/qualify-located.sh
