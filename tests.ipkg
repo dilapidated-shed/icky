@@ -12,6 +12,7 @@ modules = Source,
           Syntax,
           Located,
           Parse,
+          Protocol,
           Tests
 
 main = Tests
