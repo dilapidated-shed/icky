@@ -60,8 +60,8 @@ splitLast (first :: rest) =
 public export
 exprFromLocatedPieces : List LocatedPiece -> Maybe LocatedExpr
 exprFromLocatedPieces [] = Nothing
-exprFromLocatedPieces pieces@(first :: rest) =
-  case splitLast pieces of
+exprFromLocatedPieces (first :: rest) =
+  case splitLast (first :: rest) of
     Just (leading, LocatedNoun span noun) =>
       Just (MkLocatedExpr
              (spanBetween (spanStart (pieceSpan first)) (spanEnd span))
