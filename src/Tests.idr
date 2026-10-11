@@ -6,6 +6,7 @@ import Glyph
 import Located
 import Name
 import Parse
+import Protocol
 import Scan
 import Source
 import Syntax
@@ -252,6 +253,44 @@ assertLocatedSyntax = do
         _ => fail "located parser changed expression count or source order"
 
 private
+assertProtocol : IO ()
+assertProtocol = do
+  let first = protocolHeader ++ "\n" ++
+              "ok\t1\n" ++
+              "expr\t0\t0\t1\t1\t7\t1\t8\n" ++
+              "glyph\t0.0\t0\t1\t1\t1\t1\t2\t←\n" ++
+              "name\t0.1\t2\t1\t3\t7\t1\t8\timage\n"
+  assert "versioned protocol preserves literal glyph and character spans"
+    (renderLocatedResult (parseLocatedWithWarnings "← image") == first)
+
+  let nested = protocolHeader ++ "\n" ++
+               "ok\t1\n" ++
+               "expr\t0\t0\t1\t1\t11\t1\t12\n" ++
+               "glyph\t0.0\t0\t1\t1\t1\t1\t2\t⌖\n" ++
+               "group\t0.1\t2\t1\t3\t11\t1\t12\n" ++
+               "expr\t0.1\t3\t1\t4\t10\t1\t11\n" ++
+               "glyph\t0.1.0\t3\t1\t4\t4\t1\t5\t↥\n" ++
+               "name\t0.1.1\t5\t1\t6\t10\t1\t11\timage\n"
+  assert "versioned protocol nests group spans and children in source order"
+    (renderLocatedResult (parseLocatedWithWarnings "⌖ (↥ image)") == nested)
+
+  let aliased = protocolHeader ++ "\n" ++
+                "ok\t1\n" ++
+                "expr\t0\t0\t1\t1\t15\t1\t16\n" ++
+                "name\t0.0\t0\t1\t1\t5\t1\t6\timage\n" ++
+                "glyph\t0.1\t6\t1\t7\t8\t1\t9\t·\n" ++
+                "name\t0.2\t9\t1\t10\t15\t1\t16\tresize\n" ++
+                "warning\t6\t1\t7\t8\t1\t9\tascii-pipeline\n"
+  assert "compatibility glyph is semantic token; warning retains written alias"
+    (renderLocatedResult (parseLocatedWithWarnings "image |> resize") == aliased)
+
+  let failed = protocolHeader ++ "\n" ++
+               "error\t1\n" ++
+               "fatal\t0\t1\t1\t1\t1\t2\tunexpected-character\t\"@\"\n"
+  assert "invalid source produces only deterministic fatal protocol records"
+    (renderLocatedResult (parseLocatedWithWarnings "@") == failed)
+
+private
 assertLocatedRefusal : String -> String -> IO ()
 assertLocatedRefusal name source =
   case (parseLocated source, parse source) of
@@ -425,6 +464,7 @@ main = do
   assertSourcePosition
   assertUnicodePosition
   assertLocatedSyntax
+  assertProtocol
   assertLocatedRefusal "located invalid glyph suffix matches legacy" "image ⌖"
   assertLocatedRefusal "located invalid C thin-arrow matches legacy" "image -> resize"
   assertLocatedRefusal "located malformed group matches legacy" "(⌖ image"
