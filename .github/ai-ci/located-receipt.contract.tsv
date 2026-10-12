@@ -26,6 +26,7 @@ contains	ICKY-SOURCE-IDENTITY	evidence/receipt/icky-tests.log	ok: source binding
 contains	ICKY-SOURCE-NUMERAL	evidence/receipt/icky-tests.log	ok: source protocol preserves leading zeroes with decimal value
 contains	ICKY-SOURCE-NUMERAL-DISTINCT	evidence/receipt/icky-tests.log	ok: source protocol distinguishes equal-valued written numerals
 contains	ICKY-SOURCE-BYTE-SPANS	evidence/receipt/icky-tests.log	ok: source protocol separates glyph character and UTF-8 byte spans
+contains	ICKY-SOURCE-TWO-BYTE	evidence/receipt/icky-tests.log	ok: source protocol retains two-byte multiplication glyph intervals
 contains	ICKY-SOURCE-ALIAS	evidence/receipt/icky-tests.log	ok: source protocol retains written aliases and warning bytes
 contains	ICKY-SOURCE-FOUR-BYTE	evidence/receipt/icky-tests.log	ok: source protocol binds comments and four-byte Unicode to later spans
 contains	ICKY-SOURCE-CRLF	evidence/receipt/icky-tests.log	ok: source protocol preserves tabs and CRLF without normalization

@@ -95,9 +95,13 @@ second handwritten parser or stock-parser fallback is introduced here.
 ## Qualification
 
 The existing canonical Idriç workflow builds the new library module and
-driver. Twelve additional assertions bind source/result identity and check
+driver. Thirteen additional assertions bind source/result identity and check
 exact records for numerals, Unicode byte offsets, aliases, ignored comments,
 CRLF, nested groups, empty input, malformed input and a neighboring arrow.
+Unexpected-character display uses the pinned Prelude's quoted/escaped String
+representation: the refused U+219A arrow is displayed as `"\8602"`, while its
+written UTF-8 field remains `e2869a`. Display escaping does not change source
+identity. Exact records exercise two-, three- and four-byte UTF-8 sequences.
 The distinct AICI consumer requires the new source-fidelity assertions and four actual v3 CLI assertions along
 with the original v1/v2 parser/type/protocol receipts.
 

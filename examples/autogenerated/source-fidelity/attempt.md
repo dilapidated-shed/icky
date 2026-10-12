@@ -69,3 +69,15 @@ Both the retained v2 slice and the additive v3 slice now use the actual pinned
 Prelude `minus` operation after their explicit ordering/bounds checks.
 This is a natural-offset operation, not a signed-integer coercion or another
 compiler fallback. The new source head requires its own qualification.
+
+Run 38205057379 built the library, tests and actual parser executable at
+`bac98b9ba07fc86e392cf4db4357928d13688651`. Its archived test log passed
+the source identity, written numerals, three/four-byte Unicode, aliases,
+CRLF, nested groups and malformed/empty input assertions, then failed the
+neighboring-arrow golden diagnostic. The expected display wrongly used a
+literal `↚`; pinned Prelude.Show escapes it as `"\8602"`. The fixture now
+matches that existing display contract while retaining the literal UTF-8
+hex, and mismatch logs print both complete expected and actual records.
+An additional exact two-byte `×` interval case raises the full expected
+assertion count to 77. Actual V3 CLI/type-refusal stages were not reached in
+that failed run. Fresh exact-head execution and AICI receipts are required.

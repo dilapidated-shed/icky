@@ -328,7 +328,11 @@ assertSourceRecords name source expected =
     Right boundInput =>
       case renderSourceLocated boundInput of
         Left failure => fail (name ++ " — source serialization failed: " ++ show failure)
-        Right actual => assert name (actual == sourceProtocolHeader ++ "\n" ++ expected)
+        Right actual =>
+          if actual == sourceProtocolHeader ++ "\n" ++ expected
+             then pass name
+             else fail (name ++ "\nEXPECTED RECORDS:\n" ++ sourceProtocolHeader ++
+                        "\n" ++ expected ++ "ACTUAL RECORDS:\n" ++ actual)
 
 private
 assertSourceProtocol : IO ()
@@ -367,6 +371,13 @@ assertSourceProtocol = do
      "glyph\t0.1\t2\t1\t3\t4\t1\t5\t2\t4\t·\t7c3e\n" ++
      "natural\t0.2\t5\t1\t6\t8\t1\t9\t5\t8\t10\t303130\n" ++
      "warning\t2\t1\t3\t4\t1\t5\t2\t4\tascii-pipeline\t7c3e\n")
+  assertSourceRecords "source protocol retains two-byte multiplication glyph intervals"
+    "x × 10"
+    ("source\t6\t7\t7820c397203130\n" ++
+     "ok\t1\nexpr\t0\t0\t1\t1\t6\t1\t7\t0\t7\n" ++
+     "name\t0.0\t0\t1\t1\t1\t1\t2\t0\t1\tx\t78\n" ++
+     "glyph\t0.1\t2\t1\t3\t3\t1\t4\t2\t4\t×\tc397\n" ++
+     "natural\t0.2\t4\t1\t5\t6\t1\t7\t5\t7\t10\t3130\n")
   assertSourceRecords "source protocol binds comments and four-byte Unicode to later spans"
     "⍝😀\nx"
     ("source\t4\t9\te28d9df09f98800a78\n" ++
@@ -397,7 +408,7 @@ assertSourceProtocol = do
   assertSourceRecords "source protocol refuses an unsupported neighboring arrow"
     "↚ x"
     ("source\t3\t5\te2869a2078\nerror\t1\n" ++
-     "fatal\t0\t1\t1\t1\t1\t2\t0\t3\tunexpected-character\t\"↚\"\te2869a\n")
+     "fatal\t0\t1\t1\t1\t1\t2\t0\t3\tunexpected-character\t\"\\8602\"\te2869a\n")
 
 private
 isAbsent : Maybe a -> Bool
