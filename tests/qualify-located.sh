@@ -82,6 +82,8 @@ test -s "$receipt/icky-tests.log"
 test -s "$receipt/type-refusals.log"
 grep -Fx 'ICKY parser protocol: identity, UTF-8, warning and rejection PASS' \
   "$receipt/parser-protocol.log" >/dev/null
+grep -Fx 'ICKY parser v2: written numeral and Unicode character spans PASS' \
+  "$receipt/parser-protocol.log" >/dev/null
 
 # The independent consumer must verify the actual executable bytes, not only
 # producer-owned SHA-256 strings or success-labelled logs.

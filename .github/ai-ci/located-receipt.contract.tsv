@@ -19,6 +19,9 @@ contains	ICKY-STRUCTURED-FAILURE	evidence/receipt/icky-tests.log	ok: invalid sou
 contains	ICKY-TYPE-OPAQUE-NAME	evidence/receipt/type-refusals.log	ArbitraryName.idr rejected at its intended type boundary
 contains	ICKY-TYPE-OPAQUE-EXPR	evidence/receipt/type-refusals.log	InvalidExpression.idr rejected at its intended type boundary
 contains	ICKY-PROTOCOL-PASS	evidence/receipt/parser-protocol.log	ICKY parser protocol: identity, UTF-8, warning and rejection PASS
+contains	ICKY-V2-SPELLING-PASS	evidence/receipt/icky-tests.log	ok: v2 preserves literal 010 despite natural value 10 after Unicode glyph
+contains	ICKY-V2-MISMATCH-REFUSED	evidence/receipt/icky-tests.log	ok: v2 rejects a source/AST spelling or span mismatch
+contains	ICKY-V2-PROTOCOL-PASS	evidence/receipt/parser-protocol.log	ICKY parser v2: written numeral and Unicode character spans PASS
 contains	ICKY-PRODUCER-LOCAL-PASS	evidence/receipt/status.txt	LOCAL_PASS (AICI acceptance still required)
 not_contains	ICKY-NO-POSITIVE-FAILURES	evidence/receipt/icky-tests.log	FAIL:
 not_contains	ICKY-NO-TYPE-FAILURES	evidence/receipt/type-refusals.log	FAIL:

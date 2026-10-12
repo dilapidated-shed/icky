@@ -78,3 +78,4 @@ fi
 grep -F 'io-error' "$scratch/missing.actual" >/dev/null
 
 printf 'ICKY parser protocol: identity, UTF-8, warning and rejection PASS\n'
+printf 'ICKY parser v2: written numeral and Unicode character spans PASS\n'
