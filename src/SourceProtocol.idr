@@ -113,7 +113,7 @@ spanSourceFields source span =
          show (lineNumber (positionLine finish)) ++ "\t" ++
          show (columnNumber (positionColumn finish)) ++ "\t" ++
          show (utf8Length precedingStart) ++ "\t" ++ show (utf8Length precedingFinish),
-         utf8Hexadecimal (take (finishingOffset - startingOffset)
+         utf8Hexadecimal (take (minus finishingOffset startingOffset)
                               (drop startingOffset characters)))
       else Nothing
 

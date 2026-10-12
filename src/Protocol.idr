@@ -184,7 +184,7 @@ literalAt source span expectedValue =
       chars = unpack source
    in if finish < start || finish > length chars
         then Nothing
-        else let written = pack (take (finish - start) (drop start chars))
+        else let written = pack (take (minus finish start) (drop start chars))
               in case takeDecimalPrefix (unpack written) of
                    Just (numeral, []) =>
                      if decimalValue numeral == expectedValue &&

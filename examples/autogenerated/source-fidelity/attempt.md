@@ -61,3 +61,11 @@ API belongs to the explicit ordinary-Idris compatibility stratum. It selects
 `covering` because that is the imported parser's present totality contract.
 The standalone example is NOT_RUN; the actual maintained implementation and
 behavior are compiled/executed through the library, Tests and Driver packages.
+
+Observed qualification failure: producer run 38204224253 built canonical
+Idriç successfully, then rejected the retained v2 `literalAt` with
+`Can't find an implementation for Neg Nat`. Its source slice used `finish - start`.
+Both the retained v2 slice and the additive v3 slice now use the actual pinned
+Prelude `minus` operation after their explicit ordering/bounds checks.
+This is a natural-offset operation, not a signed-integer coercion or another
+compiler fallback. The new source head requires its own qualification.
