@@ -15,6 +15,7 @@ modules = Source,
           Located,
           Parse,
           Protocol,
+          SourceProtocol,
           Driver
 
 main = Driver

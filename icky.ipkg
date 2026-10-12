@@ -13,4 +13,6 @@ modules = Source,
           Scan,
           Syntax,
           Located,
-          Parse
+          Parse,
+          Protocol,
+          SourceProtocol

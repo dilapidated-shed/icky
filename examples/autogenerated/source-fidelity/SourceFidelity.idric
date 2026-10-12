@@ -1,0 +1,12 @@
+module SourceFidelity
+
+import SourceProtocol
+
+main : IO ()
+main =
+  case parseSourceLocated "x ← 010" of
+    Left failure => putStrLn (show failure)
+    Right boundInput =>
+      case renderSourceLocated boundInput of
+        Left failure => putStrLn (show failure)
+        Right records => putStr records

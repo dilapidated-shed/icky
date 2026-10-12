@@ -22,6 +22,19 @@ contains	ICKY-PROTOCOL-PASS	evidence/receipt/parser-protocol.log	ICKY parser pro
 contains	ICKY-V2-SPELLING-PASS	evidence/receipt/icky-tests.log	ok: v2 preserves literal 010 despite natural value 10 after Unicode glyph
 contains	ICKY-V2-MISMATCH-REFUSED	evidence/receipt/icky-tests.log	ok: v2 rejects a source/AST spelling or span mismatch
 contains	ICKY-V2-PROTOCOL-PASS	evidence/receipt/parser-protocol.log	ICKY parser v2: written numeral and Unicode character spans PASS
+contains	ICKY-SOURCE-IDENTITY	evidence/receipt/icky-tests.log	ok: source binding retains the exact parser input
+contains	ICKY-SOURCE-NUMERAL	evidence/receipt/icky-tests.log	ok: source protocol preserves leading zeroes with decimal value
+contains	ICKY-SOURCE-NUMERAL-DISTINCT	evidence/receipt/icky-tests.log	ok: source protocol distinguishes equal-valued written numerals
+contains	ICKY-SOURCE-BYTE-SPANS	evidence/receipt/icky-tests.log	ok: source protocol separates glyph character and UTF-8 byte spans
+contains	ICKY-SOURCE-ALIAS	evidence/receipt/icky-tests.log	ok: source protocol retains written aliases and warning bytes
+contains	ICKY-SOURCE-FOUR-BYTE	evidence/receipt/icky-tests.log	ok: source protocol binds comments and four-byte Unicode to later spans
+contains	ICKY-SOURCE-CRLF	evidence/receipt/icky-tests.log	ok: source protocol preserves tabs and CRLF without normalization
+contains	ICKY-SOURCE-REFUSAL	evidence/receipt/icky-tests.log	ok: source protocol refusal contains input identity and no successful AST
+contains	ICKY-SOURCE-NEIGHBOR-REFUSAL	evidence/receipt/icky-tests.log	ok: source protocol refuses an unsupported neighboring arrow
+contains	ICKY-SOURCE-EXEC-IDENTITY	evidence/receipt/icky-tests.log	ok: actual v3 executable reports its source-preserving protocol identity
+contains	ICKY-SOURCE-EXEC-POSITIVE	evidence/receipt/icky-tests.log	ok: actual v3 executable retains exact input bytes numeral spelling and byte spans
+contains	ICKY-SOURCE-EXEC-NEGATIVE	evidence/receipt/icky-tests.log	ok: actual v3 executable refuses malformed syntax with nonzero exit
+contains	ICKY-SOURCE-EXEC-MISSING	evidence/receipt/icky-tests.log	ok: actual v3 executable refuses missing input with nonzero exit
 contains	ICKY-PRODUCER-LOCAL-PASS	evidence/receipt/status.txt	LOCAL_PASS (AICI acceptance still required)
 not_contains	ICKY-NO-POSITIVE-FAILURES	evidence/receipt/icky-tests.log	FAIL:
 not_contains	ICKY-NO-TYPE-FAILURES	evidence/receipt/type-refusals.log	FAIL:

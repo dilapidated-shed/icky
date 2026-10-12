@@ -1,5 +1,6 @@
 module Tests
 
+import Data.List
 import Decimal
 import Diagnostic
 import Glyph
@@ -9,12 +10,14 @@ import Parse
 import Protocol
 import Scan
 import Source
+import SourceProtocol
 import Syntax
 import Token
 import System
+import System.File
 
 private
-fail : String -> IO ()
+fail : String -> IO a
 fail message = do
   putStrLn ("FAIL: " ++ message)
   exitFailure
@@ -318,9 +321,143 @@ assertLocatedRefusal name source =
     _ => fail (name ++ " — located and legacy rejection disagree")
 
 private
+assertSourceRecords : String -> String -> String -> IO ()
+assertSourceRecords name source expected =
+  case parseSourceLocated source of
+    Left failure => fail (name ++ " — source binding failed: " ++ show failure)
+    Right boundInput =>
+      case renderSourceLocated boundInput of
+        Left failure => fail (name ++ " — source serialization failed: " ++ show failure)
+        Right actual => assert name (actual == sourceProtocolHeader ++ "\n" ++ expected)
+
+private
+assertSourceProtocol : IO ()
+assertSourceProtocol = do
+  case parseSourceLocated "x ← 010" of
+    Left failure => fail "source binding refused supported input"
+    Right boundInput => do
+      assert "source binding retains the exact parser input"
+        (sourceLocatedText boundInput == "x ← 010")
+      assert "source binding preserves the existing located parser result"
+        (renderLocatedResult (sourceLocatedSyntax boundInput) ==
+         renderLocatedResult (parseLocatedWithWarnings "x ← 010"))
+
+  assertSourceRecords "source protocol preserves leading zeroes with decimal value"
+    "010"
+    ("source\t3\t3\t303130\n" ++
+     "ok\t1\nexpr\t0\t0\t1\t1\t3\t1\t4\t0\t3\n" ++
+     "natural\t0.0\t0\t1\t1\t3\t1\t4\t0\t3\t10\t303130\n")
+  assertSourceRecords "source protocol distinguishes equal-valued written numerals"
+    "10"
+    ("source\t2\t2\t3130\n" ++
+     "ok\t1\nexpr\t0\t0\t1\t1\t2\t1\t3\t0\t2\n" ++
+     "natural\t0.0\t0\t1\t1\t2\t1\t3\t0\t2\t10\t3130\n")
+  assertSourceRecords "source protocol separates glyph character and UTF-8 byte spans"
+    "x ← 010"
+    ("source\t7\t9\t7820e2869020303130\n" ++
+     "ok\t1\nexpr\t0\t0\t1\t1\t7\t1\t8\t0\t9\n" ++
+     "name\t0.0\t0\t1\t1\t1\t1\t2\t0\t1\tx\t78\n" ++
+     "glyph\t0.1\t2\t1\t3\t3\t1\t4\t2\t5\t←\te28690\n" ++
+     "natural\t0.2\t4\t1\t5\t7\t1\t8\t6\t9\t10\t303130\n")
+  assertSourceRecords "source protocol retains written aliases and warning bytes"
+    "x |> 010"
+    ("source\t8\t8\t78207c3e20303130\n" ++
+     "ok\t1\nexpr\t0\t0\t1\t1\t8\t1\t9\t0\t8\n" ++
+     "name\t0.0\t0\t1\t1\t1\t1\t2\t0\t1\tx\t78\n" ++
+     "glyph\t0.1\t2\t1\t3\t4\t1\t5\t2\t4\t·\t7c3e\n" ++
+     "natural\t0.2\t5\t1\t6\t8\t1\t9\t5\t8\t10\t303130\n" ++
+     "warning\t2\t1\t3\t4\t1\t5\t2\t4\tascii-pipeline\t7c3e\n")
+  assertSourceRecords "source protocol binds comments and four-byte Unicode to later spans"
+    "⍝😀\nx"
+    ("source\t4\t9\te28d9df09f98800a78\n" ++
+     "ok\t1\nexpr\t0\t3\t2\t1\t4\t2\t2\t8\t9\n" ++
+     "name\t0.0\t3\t2\t1\t4\t2\t2\t8\t9\tx\t78\n")
+  assertSourceRecords "source protocol preserves tabs and CRLF without normalization"
+    "x\t\r\n010"
+    ("source\t7\t7\t78090d0a303130\n" ++
+     "ok\t2\nexpr\t0\t0\t1\t1\t1\t1\t2\t0\t1\n" ++
+     "name\t0.0\t0\t1\t1\t1\t1\t2\t0\t1\tx\t78\n" ++
+     "expr\t1\t4\t2\t1\t7\t2\t4\t4\t7\n" ++
+     "natural\t1.0\t4\t2\t1\t7\t2\t4\t4\t7\t10\t303130\n")
+  assertSourceRecords "source protocol checks nested group intervals against the input"
+    "((010))"
+    ("source\t7\t7\t28283031302929\n" ++
+     "ok\t1\nexpr\t0\t0\t1\t1\t7\t1\t8\t0\t7\n" ++
+     "group\t0.0\t0\t1\t1\t7\t1\t8\t0\t7\n" ++
+     "expr\t0.0\t1\t1\t2\t6\t1\t7\t1\t6\n" ++
+     "group\t0.0.0\t1\t1\t2\t6\t1\t7\t1\t6\n" ++
+     "expr\t0.0.0\t2\t1\t3\t5\t1\t6\t2\t5\n" ++
+     "natural\t0.0.0.0\t2\t1\t3\t5\t1\t6\t2\t5\t10\t303130\n")
+  assertSourceRecords "source protocol refusal contains input identity and no successful AST"
+    "@"
+    ("source\t1\t1\t40\nerror\t1\n" ++
+     "fatal\t0\t1\t1\t1\t1\t2\t0\t1\tunexpected-character\t\"@\"\t40\n")
+  assertSourceRecords "source protocol preserves the empty input identity"
+    "" "source\t0\t0\t\nok\t0\n"
+  assertSourceRecords "source protocol refuses an unsupported neighboring arrow"
+    "↚ x"
+    ("source\t3\t5\te2869a2078\nerror\t1\n" ++
+     "fatal\t0\t1\t1\t1\t1\t2\t0\t3\tunexpected-character\t\"↚\"\te2869a\n")
+
+private
 isAbsent : Maybe a -> Bool
 isAbsent Nothing = True
 isAbsent (Just value) = False
+
+private
+runParserArguments : List String -> IO (Int, String)
+runParserArguments arguments = do
+  opened <- System.File.Process.Escaped.popen
+              ("./build/exec/icky-parser" :: arguments) Read
+  case opened of
+    Left problem => fail ("actual parser executable could not start: " ++ show problem)
+    Right pipe => do
+      output <- fRead pipe
+      exitCode <- pclose pipe
+      case output of
+        Left problem => fail ("actual parser output could not be read: " ++ show problem)
+        Right records => pure (exitCode, records)
+
+private
+writeParserFixture : String -> String -> IO ()
+writeParserFixture path source = do
+  written <- writeFile path source
+  case written of
+    Left problem => fail ("parser fixture could not be written: " ++ show problem)
+    Right () => pure ()
+
+private
+assertSourceExecutable : IO ()
+assertSourceExecutable = do
+  (identityExit, identityRecords) <- runParserArguments ["--identity-v3"]
+  assert "actual v3 executable reports its source-preserving protocol identity"
+    (identityExit == 0 && identityRecords == sourceProtocolHeader ++ "\n")
+
+  writeParserFixture "build/source-fidelity-positive.txt" "x ← 010"
+  (positiveExit, positiveRecords) <- runParserArguments
+    ["--parse-v3", "build/source-fidelity-positive.txt"]
+  let expected = sourceProtocolHeader ++ "\n" ++
+                 "source\t7\t9\t7820e2869020303130\n" ++
+                 "ok\t1\nexpr\t0\t0\t1\t1\t7\t1\t8\t0\t9\n" ++
+                 "name\t0.0\t0\t1\t1\t1\t1\t2\t0\t1\tx\t78\n" ++
+                 "glyph\t0.1\t2\t1\t3\t3\t1\t4\t2\t5\t←\te28690\n" ++
+                 "natural\t0.2\t4\t1\t5\t7\t1\t8\t6\t9\t10\t303130\n"
+  assert "actual v3 executable retains exact input bytes numeral spelling and byte spans"
+    (positiveExit == 0 && positiveRecords == expected)
+
+  writeParserFixture "build/source-fidelity-negative.txt" "@"
+  (negativeExit, negativeRecords) <- runParserArguments
+    ["--parse-v3", "build/source-fidelity-negative.txt"]
+  assert "actual v3 executable refuses malformed syntax with nonzero exit"
+    (negativeExit /= 0 && negativeRecords ==
+     sourceProtocolHeader ++ "\nsource\t1\t1\t40\nerror\t1\n" ++
+     "fatal\t0\t1\t1\t1\t1\t2\t0\t1\tunexpected-character\t\"@\"\t40\n")
+
+  (missingExit, missingRecords) <- runParserArguments
+    ["--parse-v3", "build/source-fidelity-absent-input.txt"]
+  let expectedPrefix = unpack (sourceProtocolHeader ++ "\nio-error\t")
+  assert "actual v3 executable refuses missing input with nonzero exit"
+    (missingExit /= 0 && take (length expectedPrefix) (unpack missingRecords) == expectedPrefix)
 
 main : IO ()
 main = do
@@ -485,6 +622,8 @@ main = do
   assertLocatedSyntax
   assertProtocol
   assertSourceSpelling
+  assertSourceProtocol
+  assertSourceExecutable
   assertLocatedRefusal "located invalid glyph suffix matches legacy" "image ⌖"
   assertLocatedRefusal "located invalid C thin-arrow matches legacy" "image -> resize"
   assertLocatedRefusal "located malformed group matches legacy" "(⌖ image"

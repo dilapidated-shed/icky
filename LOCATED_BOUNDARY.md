@@ -33,14 +33,19 @@ Source offsets count Idris `Char` values from zero, not UTF-8 bytes. Source
 lines/columns are one-based and spans are half-open. All spans belong to the
 **exact source string given to ICKY**. The parser does not currently retain a
 file path, an input digest, a macro expansion map, a preprocessor token
-identity, or a byte-offset table.
+identity, or a byte-offset table in the v1 AST.
+
+The separate [source-preserving v3 interface](SOURCE_PROTOCOL.md) provides
+an opaque input/result pairing, complete canonical UTF-8 source bytes,
+written numeral/glyph/name slices and checked byte intervals. It does not
+change the located AST or supply a macro expansion map.
 
 An ICK GCC consumer must therefore distinguish raw input positions from
 positions in its preprocessed C stream. It must not treat a three-byte UTF-8
 `←` as a one-byte source offset. Macro expansion/source-map conversion,
-an explicit versioned executable protocol, pinning the ICKY compiler and
-toolchain, and verifying the exact parser executable are still separate K2
-work. Nothing here permits a hidden handwritten C fallback if an ICKY-admitted
+the actual ICK consumer and verified compiler/executable identity remain K2
+work. Versioned producer protocols alone do not integrate the compiler.
+Nothing here permits a hidden handwritten C fallback if an ICKY-admitted
 path rejects the input.
 
 ## Ownership and acceptance
@@ -74,8 +79,11 @@ revision remains declared until independently bound to the executable; AICI
 must independently check identities and execution traces before delivering
 or merging anything.
 
-As of this source change, the qualification runner itself has **NOT_RUN**
-status: the current environment lacks a qualified Idriç compiler executable.
+The original runner/library/v1 executable qualification passed at source
+`ec5981c1256bf20f10306d49864f2e7c75e1d755` in
+[run 38138151255](https://github.com/dilapidated-shed/icky/actions/runs/38138151255),
+including the independent AICI receipt consumer. Every later source edit,
+including the v3 prerequisite, requires a fresh exact-head verdict.
 
 ## Source spelling and the opt-in v2 protocol
 
@@ -102,3 +110,8 @@ or actual GCC ICK frontend consumption. Those are separate mandatory
 consumer admission conditions in Flexible Pipes SUN K1 #71. The v2 producer
 alone cannot authorize a C frontend or a merge. Each changed source head
 requires an exact Idriç parser run and a separate AICI receipt verdict.
+
+The additive v3 source frame and checked UTF-8 intervals are described in
+[SOURCE_PROTOCOL.md](SOURCE_PROTOCOL.md). They use the same parser and v2
+literal checks with an opaque source/result pairing. V1/v2 output stays
+unchanged; an actual ICK consumer and preprocessing map are still missing.

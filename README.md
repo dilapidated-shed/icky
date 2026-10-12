@@ -127,6 +127,14 @@ its own exact head; the verified ancestor does not accept it.
 Do not treat ICKY's grammar as general C or a replacement for GCC's
 independently retained `gengtype` generator.
 
+The additive [source-preserving v3 interface](SOURCE_PROTOCOL.md) binds the
+actual parser input to its result, retains every input UTF-8 byte and written
+numeral spelling, and adds checked byte intervals alongside character
+positions. `--identity-v3` / `--parse-v3 SOURCE_FILE` select this extension;
+v1/v2 remain unchanged. This prerequisite needs its own exact-head
+qualification and actual ICK consumption with preprocessing and bypass
+controls.
+
 ## Mathematical glyph preservation
 
 The mathematical glyphs `÷ × √ ² ³ ≠ ≟ λ ∞ − –` are preserved distinctly. Mathematical minus and en dash are separate tokens. This adds surface identity only: meaning, precedence, and normalization remain downstream.

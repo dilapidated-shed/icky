@@ -1,5 +1,6 @@
 module Protocol
 
+import Data.List
 import Decimal
 import Diagnostic
 import Glyph
