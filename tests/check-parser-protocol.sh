@@ -26,6 +26,25 @@ END_EXPECTED
 "$parser" --parse "$scratch/valid source" > "$scratch/valid.actual"
 cmp "$scratch/valid.expected" "$scratch/valid.actual"
 
+
+printf 'ICKY-LOCATED\t2\tchar-offset\n' > "$scratch/identity-v2.expected"
+"$parser" --identity-v2 > "$scratch/identity-v2.actual"
+cmp "$scratch/identity-v2.expected" "$scratch/identity-v2.actual"
+
+# Unicode glyph before an octal-looking C literal:
+# ICKY's Nat is ten, but the source spelling 010 must remain recoverable.
+printf '← 010' > "$scratch/leading-zero"
+cat > "$scratch/leading-zero.expected" <<'END_NUMERAL'
+ICKY-LOCATED	2	char-offset
+ok	1
+expr	0	0	1	1	5	1	6
+glyph	0.0	0	1	1	1	1	2	←
+natural	0.1	2	1	3	5	1	6	10
+spelling	0.1	2	1	3	5	1	6	010
+END_NUMERAL
+"$parser" --parse-v2 "$scratch/leading-zero" > "$scratch/leading-zero.actual"
+cmp "$scratch/leading-zero.expected" "$scratch/leading-zero.actual"
+
 printf 'image |> resize' > "$scratch/alias"
 cat > "$scratch/alias.expected" <<'END_ALIAS'
 ICKY-LOCATED	1	char-offset

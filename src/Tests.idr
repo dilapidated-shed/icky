@@ -291,6 +291,25 @@ assertProtocol = do
     (renderLocatedResult (parseLocatedWithWarnings "@") == failed)
 
 private
+assertSourceSpelling : IO ()
+assertSourceSpelling = do
+  let source = "← 010"
+  let expected = protocolHeaderV2 ++ "\n" ++
+                 "ok\t1\n" ++
+                 "expr\t0\t0\t1\t1\t5\t1\t6\n" ++
+                 "glyph\t0.0\t0\t1\t1\t1\t1\t2\t←\n" ++
+                 "natural\t0.1\t2\t1\t3\t5\t1\t6\t10\n" ++
+                 "spelling\t0.1\t2\t1\t3\t5\t1\t6\t010\n"
+  assert "v2 preserves literal 010 despite natural value 10 after Unicode glyph"
+    (renderLocatedResultV2 source (parseLocatedWithWarnings source) ==
+     Right expected)
+
+  case renderLocatedResultV2 "← 10" (parseLocatedWithWarnings source) of
+    Left problem => assert "v2 rejects a source/AST spelling or span mismatch"
+                      (problem == "SOURCE_SPELLING_MISMATCH\t0.1")
+    Right records => fail "v2 accepted source bytes inconsistent with parsed source"
+
+private
 assertLocatedRefusal : String -> String -> IO ()
 assertLocatedRefusal name source =
   case (parseLocated source, parse source) of
@@ -465,6 +484,7 @@ main = do
   assertUnicodePosition
   assertLocatedSyntax
   assertProtocol
+  assertSourceSpelling
   assertLocatedRefusal "located invalid glyph suffix matches legacy" "image ⌖"
   assertLocatedRefusal "located invalid C thin-arrow matches legacy" "image -> resize"
   assertLocatedRefusal "located malformed group matches legacy" "(⌖ image"

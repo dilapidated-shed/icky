@@ -76,3 +76,29 @@ or merging anything.
 
 As of this source change, the qualification runner itself has **NOT_RUN**
 status: the current environment lacks a qualified Idriç compiler executable.
+
+## Source spelling and the opt-in v2 protocol
+
+The original `--parse` and `ICKY-LOCATED\t1\tchar-offset` protocol continue
+to emit the existing canonical `natural` value. That interface still does not
+distinguish a source numeral `010` from `10`.
+
+The additive `--identity-v2` and `--parse-v2 SOURCE_FILE` modes use
+`ICKY-LOCATED\t2\tchar-offset`. They serialize the **same ICKY AST**, with
+extra `spelling` rows identifying the AST path, its six character-coordinate
+fields, and the original decimal text. The parser takes that text from its
+actual input string at the located span and verifies it against ICKY's typed
+`DecimalNumeral` recognizer and numeric value before returning success.
+A mismatch is a nonzero failure, never a fabricated `ok` record.
+
+For example, `← 010` produces a natural value of `10`, plus a `spelling`
+record containing `010`. A C consumer must use that preserved spelling when
+deciding whether a literal means decimal or octal, or explicitly reject it.
+A `Nat` value alone is never evidence for C integer-literal semantics.
+
+**Not yet supplied by v2:** immutable original input-byte SHA-256, UTF-8
+byte-to-character conversion, GCC preprocessor source maps, general C syntax,
+or actual GCC ICK frontend consumption. Those are separate mandatory
+consumer admission conditions in Flexible Pipes SUN K1 #71. The v2 producer
+alone cannot authorize a C frontend or a merge. Each changed source head
+requires an exact Idriç parser run and a separate AICI receipt verdict.

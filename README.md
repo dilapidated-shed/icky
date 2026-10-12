@@ -116,8 +116,14 @@ and returns nonzero for unsupported syntax or input-file failures.
 groups, compatibility warnings, successful-tree erasure, and the explicitly
 missing GCC preprocessing/UTF-8-byte-offset/source-map integration.
 
-**Current qualification:** these are source changes and tests awaiting an
-exact-head Idriç build, executable proof and independent AICI acceptance.
+**Verified previous head:** `ec5981c1256bf20f10306d49864f2e7c75e1d755` passed
+pinned Idriç parser execution and independent AICI evidence validation on
+[run 38138151255](https://github.com/dilapidated-shed/icky/actions/runs/38138151255).
+
+Opt-in `--identity-v2` / `--parse-v2 SOURCE_FILE` preserve literal decimal
+spelling in additional checked records without changing v1 output. See
+[LOCATED_BOUNDARY.md](LOCATED_BOUNDARY.md). New source must be qualified at
+its own exact head; the verified ancestor does not accept it.
 Do not treat ICKY's grammar as general C or a replacement for GCC's
 independently retained `gengtype` generator.
 

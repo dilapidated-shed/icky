@@ -102,7 +102,7 @@ jobs:
           test "$(cat evidence/receipt/icky-source-sha.txt)" = "$source_sha"
           test "$(cat evidence/receipt/idric-source-sha-declared.txt)" = '2734ac5a86610eddfab73b1644d72b4ac85a65ee'
           grep -Fx 'Idris 2, version 0.8.0-2734ac5a8' evidence/receipt/idric-version.txt
-          test "$(grep -c '^ok:' evidence/receipt/icky-tests.log)" -eq 58
+          test "$(grep -c '^ok:' evidence/receipt/icky-tests.log)" -eq 60
           test "$(grep -c '^ok: tests/rejected/' evidence/receipt/type-refusals.log)" -eq 5
           test "$(wc -l < evidence/receipt/executables.sha256)" -eq 2
           (cd evidence/receipt && sha256sum -c executables.sha256)

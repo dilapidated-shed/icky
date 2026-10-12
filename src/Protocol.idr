@@ -1,5 +1,6 @@
 module Protocol
 
+import Decimal
 import Diagnostic
 import Glyph
 import Located
@@ -118,3 +119,110 @@ renderLocatedResult (Left diagnostics) =
 renderLocatedResult (Right (MkLocatedParseResult (MkLocatedProgram expressions) warnings)) =
   joinRows (protocolHeader :: ("ok\t" ++ show (length expressions)) ::
            (programRows 0 expressions ++ map warningRow warnings))
+
+
+-- Version 2 extends the same located AST; it does not parse the source again.
+-- The extra spelling rows disambiguate 010 from 10 for consumers which need
+-- source fidelity. Version 1 remains unchanged for its existing consumers.
+-- The caller must still bind the original input bytes independently: these
+-- Char offsets are not GCC preprocessing maps or UTF-8 byte positions.
+public export
+protocolHeaderV2 : String
+protocolHeaderV2 = "ICKY-LOCATED\t2\tchar-offset"
+
+mutual
+  private
+  covering
+  naturalOccurrences : String -> LocatedExpr -> List (String, Span, Nat)
+  naturalOccurrences path (MkLocatedExpr span leading final) =
+    leadingNaturals path 0 leading ++
+    finalNaturals (childPath path (length leading)) final
+
+  private
+  covering
+  leadingNaturals : String -> Nat -> List LocatedPiece -> List (String, Span, Nat)
+  leadingNaturals path index [] = []
+  leadingNaturals path index (piece :: rest) =
+    pieceNaturals (childPath path index) piece ++
+    leadingNaturals path (S index) rest
+
+  private
+  covering
+  pieceNaturals : String -> LocatedPiece -> List (String, Span, Nat)
+  pieceNaturals path (LocatedNoun span (NaturalNoun value)) =
+    [(path, span, value)]
+  pieceNaturals path (LocatedNoun span (NameNoun name)) = []
+  pieceNaturals path (LocatedGlyph span glyph) = []
+  pieceNaturals path (LocatedGroup span expression) =
+    naturalOccurrences path expression
+
+  private
+  covering
+  finalNaturals : String -> LocatedFinalPiece -> List (String, Span, Nat)
+  finalNaturals path (LocatedFinalNoun span (NaturalNoun value)) =
+    [(path, span, value)]
+  finalNaturals path (LocatedFinalNoun span (NameNoun name)) = []
+  finalNaturals path (LocatedFinalGroup span expression) =
+    naturalOccurrences path expression
+
+private
+covering
+programNaturals : Nat -> List LocatedExpr -> List (String, Span, Nat)
+programNaturals index [] = []
+programNaturals index (expression :: rest) =
+  naturalOccurrences (show index) expression ++
+  programNaturals (S index) rest
+
+-- This is a checked source *slice*, not a competing number scanner.
+-- Decimal.takeDecimalPrefix performs the existing typed lexical recognition.
+private
+literalAt : String -> Span -> Nat -> Maybe String
+literalAt source span expectedValue =
+  let start = offsetNumber (positionOffset (spanStart span))
+      finish = offsetNumber (positionOffset (spanEnd span))
+      chars = unpack source
+   in if finish < start || finish > length chars
+        then Nothing
+        else let written = pack (take (finish - start) (drop start chars))
+              in case takeDecimalPrefix (unpack written) of
+                   Just (numeral, []) =>
+                     if decimalValue numeral == expectedValue &&
+                        decimalText numeral == written
+                       then Just written
+                       else Nothing
+                   _ => Nothing
+
+private
+checkedSpellings : String -> List (String, Span, Nat) ->
+                   Either String (List String)
+checkedSpellings source [] = Right []
+checkedSpellings source ((path, span, value) :: rest) =
+  case literalAt source span value of
+    Nothing => Left ("SOURCE_SPELLING_MISMATCH\t" ++ path)
+    Just written =>
+      case checkedSpellings source rest of
+        Left problem => Left problem
+        Right rows =>
+          Right (("spelling\t" ++ path ++ "\t" ++ spanFields span ++
+                  "\t" ++ written) :: rows)
+
+-- A refusal is never represented as a successful tree. The extra records
+-- are validated against the same source passed to parseLocatedWithWarnings.
+public export
+covering
+renderLocatedResultV2 : String ->
+                        Either (List FatalDiagnostic) LocatedParseResult ->
+                        Either String String
+renderLocatedResultV2 source (Left diagnostics) =
+  Right (joinRows (protocolHeaderV2 ::
+                  ("error\t" ++ show (length diagnostics)) ::
+                  map fatalRow diagnostics))
+renderLocatedResultV2 source
+  (Right (MkLocatedParseResult (MkLocatedProgram expressions) warnings)) =
+  case checkedSpellings source (programNaturals 0 expressions) of
+    Left problem => Left problem
+    Right rows =>
+      Right (joinRows (protocolHeaderV2 ::
+                      ("ok\t" ++ show (length expressions)) ::
+                      (programRows 0 expressions ++
+                       map warningRow warnings ++ rows)))
