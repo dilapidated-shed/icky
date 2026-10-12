@@ -54,3 +54,10 @@ checks, keeps its tests and CLI modes, and reserves version 3 for the additional
 whole-input/byte-span interface. No competing parser is added. Actual v3 CLI
 controls use the pinned Idriç process interface with escaped argument lists;
 the hosted check must pass on the combined head.
+
+The preserved `.idric` example uses canonical Unicode branch arrows and
+snake_case local names from Idriç's pinned STYLE.md. Its imported camelCase
+API belongs to the explicit ordinary-Idris compatibility stratum. It selects
+`covering` because that is the imported parser's present totality contract.
+The standalone example is NOT_RUN; the actual maintained implementation and
+behavior are compiled/executed through the library, Tests and Driver packages.
