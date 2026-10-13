@@ -1,0 +1,131 @@
+# Separate consumer: verify archive, relocate, execute and attack copies.
+set -e
+var source = ARGV[0]
+var archive = ARGV[1]
+var expected_digest = ARGV[2]
+var aici = ARGV[3]
+var grease = ARGV[4]
+var work = ARGV[5]
+test ! -e $work
+mkdir -p $work
+var actual_digest = $(sha256sum $archive).split(' ')[0]
+if (actual_digest !== expected_digest) {
+  write -- 'FAIL ICKY-ARCHIVE: delivered archive digest mismatch' >&2
+  exit 1
+}
+var names = $(tar -tzf $archive).split(u'\n')
+var seen = []
+for entry in (names) {
+  var path = entry
+  if (path[0:2] === './') { setvar path = path[2:] }
+  if (path === '') { continue }
+  if (path[-1] === '/') { setvar path = path[0:-1] }
+  if ! grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9._/-]*$' <<< $path {
+    write -- 'FAIL ICKY-ARCHIVE-PATH: unsafe archive member' >&2
+    exit 1
+  }
+  for component in (path.split('/')) {
+    if (component === '..' or component === '.' or component === '') {
+      write -- 'FAIL ICKY-ARCHIVE-PATH: noncanonical member' >&2
+      exit 1
+    }
+  }
+  for existing in (seen) {
+    if (path === existing) { write -- 'FAIL ICKY-ARCHIVE-DUPLICATE' >&2; exit 1 }
+  }
+  call seen->append(path)
+}
+var listing = $(tar -tvzf $archive).split(u'\n')
+for member in (listing) {
+  if (member[0] !== '-' and member[0] !== 'd') {
+    write -- 'FAIL ICKY-ARCHIVE-NODE: link or special member' >&2
+    exit 1
+  }
+}
+var good = "$work/relocated-package"
+mkdir -p $good $work/unrelated $work/poison
+tar --no-same-owner -xzf $archive -C $good
+cd $work/unrelated
+$grease $aici/package-closure/self-test.grease $aici/package-closure $grease $work/shared-self-test > $work/shared-self-test.log
+$grease $source/packaging/check-parser.grease $good $source $aici $grease $work/positive > $work/positive.log 2>&1
+var poison_names = ['scheme', 'chezscheme', 'idris2', 'icky-parser', 'cc', 'gcc', 'clang', 'bison', 'yacc']
+for name in (poison_names) {
+  ln -s /usr/bin/false $work/poison/$name
+}
+env PATH=$work/poison:/usr/bin:/bin $grease $source/packaging/check-parser.grease $good $source $aici $grease $work/poisoned-path > $work/poisoned-path.log 2>&1
+proc refuse(name, diagnostic) {
+  if $grease $source/packaging/check-parser.grease $work/$name $source $aici $grease $work/$name-output > $work/$name.log 2>&1 {
+    write -- "FAIL ICKY-MUTANT-ACCEPTED: $name" >&2
+    exit 1
+  }
+  grep -F $diagnostic $work/$name.log
+  write -- "PASS ICKY-MUTANT-REFUSED: $name"
+}
+proc seal(name) {
+  $grease $aici/package-closure/manifest.grease $work/$name > $work/$name/material.tsv
+}
+for name in missing-app missing-support missing-boot missing-provider no-op forged-manifest old-checkout wrong-source wrong-source-archive wrong-repository stale-submodule {
+  cp -R $good $work/$name
+}
+rm $work/missing-app/app/icky-parser_app/icky-parser.so
+seal missing-app
+refuse missing-app CLOSURE-REQUIRED
+rm $work/missing-support/app/icky-parser_app/libidris2_support.so
+seal missing-support
+refuse missing-support CLOSURE-REQUIRED
+rm $work/missing-boot/runtime/scheme.boot
+seal missing-boot
+refuse missing-boot CLOSURE-REQUIRED
+rm $work/missing-provider/runtime/elf/libc.so.6
+seal missing-provider
+refuse missing-provider CLOSURE-REQUIRED
+printf '(import (chezscheme))\n(exit 0)\n' > $work/no-op/app/icky-parser_app/icky-parser.so
+seal no-op
+refuse no-op ICKY-IDENTITY-V1
+printf 'forged\n' > $work/forged-manifest/material.tsv
+refuse forged-manifest CLOSURE-MATERIAL
+printf 'exec /producer-old-checkout/build/exec/icky-parser "$@"\n' > $work/old-checkout/launch.grease
+seal old-checkout
+refuse old-checkout ICKY-LAUNCHER
+printf '%s\n' 0000000000000000000000000000000000000000 > $work/wrong-source/provenance/idric-source.txt
+seal wrong-source
+refuse wrong-source ICKY-SOURCE
+printf 'wrong tool source archive\n' > $work/wrong-source-archive/sources/idric.tar
+seal wrong-source-archive
+refuse wrong-source-archive ICKY-SOURCE-ARCHIVE
+printf 'icky\twrong-owner/icky\n' > $work/wrong-repository/provenance/repositories.tsv
+seal wrong-repository
+refuse wrong-repository ICKY-REPOSITORY
+printf 'icky\t1\nidric\t0\n' > $work/stale-submodule/provenance/gitlink-counts.tsv
+seal stale-submodule
+refuse stale-submodule ICKY-SUBMODULE
+proc refuse_archive(name, diagnostic) {
+  var digest = $(sha256sum $work/$name.tar.gz).split(' ')[0]
+  if $grease $source/packaging/replay.grease $source $work/$name.tar.gz $digest $aici $grease $work/$name-output > $work/$name.log 2>&1 {
+    write -- "FAIL ICKY-ARCHIVE-MUTANT-ACCEPTED: $name" >&2
+    exit 1
+  }
+  grep -F $diagnostic $work/$name.log
+  write -- "PASS ICKY-ARCHIVE-MUTANT-REFUSED: $name"
+}
+tar -czf $work/unsafe-path.tar.gz --transform='s,^,../escape/,' -C $good .
+refuse_archive unsafe-path ICKY-ARCHIVE-PATH
+tar -cf $work/duplicate.tar -C $good .
+tar -rf $work/duplicate.tar -C $good ./material.tsv
+gzip -c $work/duplicate.tar > $work/duplicate.tar.gz
+refuse_archive duplicate ICKY-ARCHIVE-DUPLICATE
+mkdir -p $work/link-source
+ln -s /etc/passwd $work/link-source/escape
+tar -czf $work/unsafe-node.tar.gz -C $work/link-source .
+refuse_archive unsafe-node ICKY-ARCHIVE-NODE
+if $grease $source/packaging/replay.grease $source $archive 0000000000000000000000000000000000000000000000000000000000000000 $aici $grease $work/wrong-archive-output > $work/wrong-archive.log 2>&1 {
+  write -- 'FAIL ICKY-ARCHIVE-MUTANT-ACCEPTED: wrong digest' >&2
+  exit 1
+}
+grep -F ICKY-ARCHIVE $work/wrong-archive.log
+printf '%s\n' $actual_digest > $work/archive-sha256.txt
+var revision = $(git -C $source rev-parse HEAD)
+printf '%s\n' $revision > $work/source-revision.txt
+cp /etc/os-release $work/consumer-os.txt
+printf '%s\n' 'INDEPENDENT_PACKAGE_PASS' > $work/status.txt
+write -- 'PASS independent relocated package, poisoned PATH, eleven package attacks and four archive attacks'

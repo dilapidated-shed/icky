@@ -6,6 +6,10 @@ on:
 
 permissions:
   contents: read
+  actions: read
+
+env:
+  ASAN_OPTIONS: detect_leaks=0
 
 jobs:
   located-parser:
@@ -33,6 +37,34 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           test "$(git -C .idric-host rev-parse HEAD)" = "2734ac5a86610eddfab73b1644d72b4ac85a65ee"
           git status --porcelain --untracked-files=no
+
+      - name: Checkout independent package-material verifier
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphisms/ai-ci
+          ref: afb04882771bc9f634968a6fdf0bc4120b10e3b5
+          path: .aici-closure
+          persist-credentials: false
+
+      - name: Acquire pinned Grease implementation artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: '11419782646'
+          repository: dilapidated-shed/grease
+          run-id: '37476471876'
+          github-token: ${{ github.token }}
+          path: .grease-runtime
+
+      - name: Bind Grease implementation and generate its native applet adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' '7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c  .grease-runtime/_bin/cxx-asan/ysh' | sha256sum -c -
+          chmod 755 .grease-runtime/_bin/cxx-asan/ysh
+          printf '#!%s\n' "$GITHUB_WORKSPACE/.grease-runtime/_bin/cxx-asan/ysh" > .grease-runtime/grease
+          cat packaging/grease-entrypoint.grease >> .grease-runtime/grease
+          chmod 755 .grease-runtime/grease
+          .grease-runtime/grease -c 'write -- pinned-grease-ready'
 
       - name: Install explicitly required Idriç bootstrap host tools
         shell: bash
@@ -65,6 +97,13 @@ jobs:
           sh tests/qualify-located.sh
           cat "build/qualification/located-$(git rev-parse HEAD)/status.txt"
 
+      - name: Package complete parser, runtime and source material
+        shell: ${{ github.workspace }}/.grease-runtime/grease {0}
+        run: |
+          var root = ENV.GITHUB_WORKSPACE
+          var revision = $(git -C $root rev-parse HEAD)
+          $root/.grease-runtime/grease $root/packaging/package.grease $root $root/.idric-host $root/.grease-runtime/grease $root/.aici-closure $root/build/qualification/located-$revision
+
       - name: Retain source, toolchain, executable and test receipts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -91,6 +130,34 @@ jobs:
           name: icky-located-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
           path: evidence
 
+      - name: Checkout pinned independent package verifier
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: isomorphisms/ai-ci
+          ref: afb04882771bc9f634968a6fdf0bc4120b10e3b5
+          path: .aici-closure
+          persist-credentials: false
+
+      - name: Acquire original pinned Grease harness
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: '11419782646'
+          repository: dilapidated-shed/grease
+          run-id: '37476471876'
+          github-token: ${{ github.token }}
+          path: .grease-runtime
+
+      - name: Verify Grease bytes and supply canonical native adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' '7e31cd05b7a9d8fb2a4a9e003a7f3fcb0159138506d17f0fb28da8cbe22aa85c  .grease-runtime/_bin/cxx-asan/ysh' | sha256sum -c -
+          chmod 755 .grease-runtime/_bin/cxx-asan/ysh
+          printf '#!%s\n' "$GITHUB_WORKSPACE/.grease-runtime/_bin/cxx-asan/ysh" > .grease-runtime/grease
+          cat packaging/grease-entrypoint.grease >> .grease-runtime/grease
+          chmod 755 .grease-runtime/grease
+          .grease-runtime/grease -c 'write -- pinned-grease-ready'
+
       - name: Bind executable receipt to exact source and pinned Idriç
         shell: bash
         run: |
@@ -107,6 +174,23 @@ jobs:
           test "$(wc -l < evidence/receipt/executables.sha256)" -eq 2
           (cd evidence/receipt && sha256sum -c executables.sha256)
           test -s evidence/receipt/idric-executable.sha256
+
+      - name: Independently execute complete archived package from unrelated context
+        shell: ${{ github.workspace }}/.grease-runtime/grease {0}
+        run: |
+          var root = ENV.GITHUB_WORKSPACE
+          var revision = $(git -C $root rev-parse HEAD)
+          var digest = $(cat $root/evidence/receipt/package.sha256).split(' ')[0]
+          $root/.grease-runtime/grease $root/packaging/replay.grease $root $root/evidence/receipt/icky-native.tar.gz $digest $root/.aici-closure $root/.grease-runtime/grease $[ENV.RUNNER_TEMP]/icky-package-$revision
+
+      - name: Retain independent execution and adversarial results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: icky-native-replay-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/icky-package-*
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Independently evaluate the immutable acceptance contract
         uses: isomorphisms/ai-ci@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5

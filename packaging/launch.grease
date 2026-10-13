@@ -1,0 +1,12 @@
+# Execute unchanged Chez output through the archived runtime, ignoring the
+# producer's absolute shebang. Grease is an explicitly separate launch harness.
+set -e
+var root = ARGV[0]
+var lane = ARGV[1]
+if (lane !== 'parser') { exit 2 }
+var program = "icky-$lane"
+shift 2
+setglobal ENV.LD_LIBRARY_PATH = "$root/runtime/elf:$root/app/${program}_app"
+setglobal ENV.IDRIS2_INC_SRC = "$root/app/${program}_app"
+unset CHEZ IDRIS2_PREFIX IDRIS2_PATH IDRIS2_DATA IDRIS2_LIBS SCHEMEHEAPDIRS LD_PRELOAD
+exec $root/runtime/elf/ld-linux-x86-64.so.2 --library-path $root/runtime/elf:$root/app/${program}_app $root/runtime/scheme -b $root/runtime/petite.boot -b $root/runtime/scheme.boot --program $root/app/${program}_app/$program.so "$@"

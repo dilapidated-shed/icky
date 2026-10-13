@@ -88,7 +88,7 @@ grep -Fx 'ICKY parser v2: written numeral and Unicode character spans PASS' \
 # The independent consumer must verify the actual executable bytes, not only
 # producer-owned SHA-256 strings or success-labelled logs.
 mkdir -p "$receipt/build/exec"
-cp build/exec/icky-tests build/exec/icky-parser "$receipt/build/exec/"
+cp -R build/exec/. "$receipt/build/exec/"
 (cd "$receipt" && sha256sum -c executables.sha256)
 printf '%s\n' 'LOCAL_PASS (AICI acceptance still required)' > "$receipt/status.txt"
 printf 'Local ICKY parser qualification passed for %s\n' "$source_revision"

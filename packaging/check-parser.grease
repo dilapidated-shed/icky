@@ -1,0 +1,92 @@
+# Consumer oracle: no build, fetch, repair or package modification.
+set -e
+var root = ARGV[0]
+var source = ARGV[1]
+var aici = ARGV[2]
+var grease = ARGV[3]
+var out = ARGV[4]
+mkdir -p $out
+$grease $aici/package-closure/verify.grease $root $source/packaging/required.tsv $aici/package-closure/manifest.grease $grease $out/material-observed.tsv
+var revision = $(git -C $source rev-parse HEAD)
+var observed_revision = $(cat $root/provenance/icky-source.txt)
+var compiler_revision = $(cat $root/provenance/idric-source.txt)
+if (revision !== observed_revision or compiler_revision !== '2734ac5a86610eddfab73b1644d72b4ac85a65ee') {
+  write -- 'FAIL ICKY-SOURCE: package source/tool identity differs from independently pinned inputs' >&2
+  exit 1
+}
+printf 'icky\tdilapidated-shed/icky\nidric\tisomorphisms/Idric\nchez\tcisco/ChezScheme\n' > $out/repositories.expected
+printf 'icky\t0\nidric\t0\n' > $out/gitlink-counts.expected
+if ! cmp $root/provenance/repositories.tsv $out/repositories.expected {
+  write -- 'FAIL ICKY-REPOSITORY: wrong source owner identity' >&2
+  exit 1
+}
+if ! cmp $root/provenance/gitlink-counts.tsv $out/gitlink-counts.expected {
+  write -- 'FAIL ICKY-SUBMODULE: source closure differs from the zero-gitlink profile' >&2
+  exit 1
+}
+if ! cmp $source/packaging/launch.grease $root/launch.grease {
+  write -- 'FAIL ICKY-LAUNCHER: launch path differs from the inspected source' >&2
+  exit 1
+}
+var owned_hash = $(git -C $source archive --format=tar HEAD | sha256sum).split(' ')[0]
+var packaged_hash = $(sha256sum $root/sources/icky.tar).split(' ')[0]
+var idric_hash = $(sha256sum $root/sources/idric.tar).split(' ')[0]
+var chez_hash = $(sha256sum $root/sources/chez.tar.gz).split(' ')[0]
+if (owned_hash !== packaged_hash or idric_hash !== 'a142eb8ba99435fed1e5e8238ee32692d6fa44672fe1fcda393ac565584d95fe' or chez_hash !== '2e74952db7bc177f0c3602e2217a341ba677d733eec4cd7726418c3a4e1ef308') {
+  write -- 'FAIL ICKY-SOURCE-ARCHIVE: owned/tool/runtime source material differs' >&2
+  exit 1
+}
+readelf -h $root/runtime/scheme > $out/runtime-elf.txt
+grep -F 'ELF64' $out/runtime-elf.txt
+grep -F 'Advanced Micro Devices X86-64' $out/runtime-elf.txt
+$root/runtime/elf/ld-linux-x86-64.so.2 --library-path $root/runtime/elf --list $root/runtime/scheme > $out/runtime-providers.txt
+var providers = $(cat $out/runtime-providers.txt).split(u'\n')
+for provider in (providers) {
+  var words = split(provider)
+  if (len(words) > 2 and words[1] === '=>') {
+    if (words[2].contains("$root/runtime/elf/") === false) {
+      write -- 'FAIL ICKY-RUNTIME: external ELF provider selected' >&2
+      exit 1
+    }
+  }
+}
+proc parser(...args) {
+  $grease $root/launch.grease $root parser @args
+}
+proc equal(actual, expected, diagnostic) {
+  if ! cmp $actual $expected {
+    write -- "FAIL $diagnostic: delivered execution differs from exact protocol bytes" >&2
+    exit 1
+  }
+}
+printf 'ICKY-LOCATED\t1\tchar-offset\n' > $out/v1.expected
+parser --identity > $out/v1.actual
+equal $out/v1.actual $out/v1.expected ICKY-IDENTITY-V1
+printf 'ICKY-LOCATED\t2\tchar-offset\n' > $out/v2.expected
+parser --identity-v2 > $out/v2.actual
+equal $out/v2.actual $out/v2.expected ICKY-IDENTITY-V2
+printf 'ICKY-LOCATED\t3\tchar-and-utf8-byte-offset\n' > $out/v3.expected
+parser --identity-v3 > $out/v3.actual
+equal $out/v3.actual $out/v3.expected ICKY-IDENTITY-V3
+printf 'x ← 010' > "$out/valid source"
+parser --parse-v3 "$out/valid source" > $out/positive.actual
+equal $out/positive.actual $source/packaging/v3-positive.expected ICKY-UTF8-SPELLING
+# Independently exercise the other maintained protocols as actual execution.
+parser --parse "$out/valid source" > $out/positive-v1.actual
+grep -F u'natural\t0.2\t4\t1\t5\t7\t1\t8\t10' $out/positive-v1.actual
+parser --parse-v2 "$out/valid source" > $out/positive-v2.actual
+grep -F u'spelling\t0.2\t4\t1\t5\t7\t1\t8\t010' $out/positive-v2.actual
+printf '@' > $out/invalid
+if $grease $root/launch.grease $root parser --parse-v3 $out/invalid > $out/negative.actual {
+  write -- 'FAIL ICKY-REFUSAL: malformed source returned zero' >&2
+  exit 1
+}
+equal $out/negative.actual $source/packaging/v3-negative.expected ICKY-REFUSAL
+if $grease $root/launch.grease $root parser --parse-v3 $out/missing > $out/missing.actual {
+  write -- 'FAIL ICKY-MISSING: missing input returned zero' >&2
+  exit 1
+}
+grep -F u'io-error\t' $out/missing.actual
+# Verify again to prove execution did not fill in or modify material.
+$grease $aici/package-closure/verify.grease $root $source/packaging/required.tsv $aici/package-closure/manifest.grease $grease $out/material-after.tsv
+write -- 'PASS ICKY-PACKAGE-REPLAY: source/tool material, three identities, UTF-8/spelling, malformed and missing source'

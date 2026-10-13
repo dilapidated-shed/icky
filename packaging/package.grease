@@ -1,0 +1,80 @@
+# Producer packaging is distinct from source build and independent replay.
+set -e
+var source = ARGV[0]
+var idric = ARGV[1]
+var grease = ARGV[2]
+var aici = ARGV[3]
+var receipt = ARGV[4]
+var revision = $(git -C $source rev-parse HEAD)
+var compiler_revision = $(git -C $idric rev-parse HEAD)
+test $compiler_revision = 2734ac5a86610eddfab73b1644d72b4ac85a65ee
+var package = "$receipt/package"
+test ! -e $package
+mkdir -p $package/app/icky-parser_app $package/runtime/elf $package/sources $package/provenance
+for lane in 'parser' {
+  test -s $source/build/exec/icky-${lane}_app/icky-$lane.so
+  cp $source/build/exec/icky-${lane}_app/icky-$lane.so $source/build/exec/icky-${lane}_app/libidris2_support.so $package/app/icky-${lane}_app/
+}
+cp $source/packaging/launch.grease $package/launch.grease
+var scheme = $(readlink -f $idric/_/.tools/bin/scheme)
+var prefix = "$idric/_/.tools/chez-10.4.1"
+cp $scheme $package/runtime/scheme
+chmod 755 $package/runtime/scheme
+for boot in petite scheme {
+  var files = $(find $prefix/lib -name $boot.boot -type f).split(u'\n')
+  if (len(files) !== 1) { exit 1 }
+  cp $[files[0]] $package/runtime/$boot.boot
+  chmod 644 $package/runtime/$boot.boot
+}
+# ldd is used only on the trusted source-built runtime and support libraries.
+# It lists transitive ELF providers, all of which are copied and hashed.
+var objects = [scheme]
+var support = $(find $package/app -name 'libidris2_support.so' -type f).split(u'\n')
+for library in (support) { call objects->append(library) }
+for object in (objects) {
+  var dependencies = $(ldd $object).split(u'\n')
+  for dependency in (dependencies) {
+    var words = split(dependency)
+    if (len(words) === 0 or words[0][0:10] === 'linux-vdso') { continue }
+    var provider = words[0]
+    if (len(words) > 2 and words[1] === '=>') { setvar provider = words[2] }
+    if (provider[0] !== '/') {
+      write -- "FAIL unresolved ELF dependency: $dependency" >&2
+      exit 1
+    }
+    var name = $(basename $provider)
+    if test -e $package/runtime/elf/$name {
+      cmp $provider $package/runtime/elf/$name
+    } else {
+      cp -L $provider $package/runtime/elf/$name
+    }
+  }
+}
+test -x $package/runtime/elf/ld-linux-x86-64.so.2
+# Obtain the complete owned snapshots. No unmaterialized gitlinks are admitted.
+for owner in $source $idric {
+  var tree = $(git -C $owner ls-tree -r HEAD).split(u'\n')
+  for entry in (tree) {
+    if (entry[0:6] === '160000') { write -- 'FAIL unmaterialized source gitlink' >&2; exit 1 }
+  }
+}
+git -C $source archive --format=tar --output=$package/sources/icky.tar HEAD
+git -C $idric archive --format=tar --output=$package/sources/idric.tar HEAD
+cp $idric/_/.tools/cache/csv10.4.1.tar.gz $package/sources/chez.tar.gz
+printf '%s  %s\n' 2e74952db7bc177f0c3602e2217a341ba677d733eec4cd7726418c3a4e1ef308 $package/sources/chez.tar.gz | sha256sum -c -
+printf '%s\n' $revision > $package/provenance/icky-source.txt
+printf '%s\n' $compiler_revision > $package/provenance/idric-source.txt
+printf 'icky\tdilapidated-shed/icky\nidric\tisomorphisms/Idric\nchez\tcisco/ChezScheme\n' > $package/provenance/repositories.tsv
+printf 'icky\t0\nidric\t0\n' > $package/provenance/gitlink-counts.tsv
+printf '%s\n' 'Linux x86_64; Chez 10.4.1 ta6le; bundled ELF providers; kernel supplied by host' > $package/provenance/target.txt
+printf '%s\n' 'Grease launch/verification harness is separate; no source build or compiler required by runtime consumer' > $package/provenance/harness.txt
+cp /etc/os-release $package/provenance/producer-os.txt
+$scheme --version > $package/provenance/chez-version.txt 2>&1
+readelf -h $scheme > $package/provenance/scheme-elf.txt
+ldd $scheme > $package/provenance/scheme-providers.txt
+dpkg-query -W libc6 libtinfo6 libzstd1 > $package/provenance/platform-packages.tsv
+printf '%s\n' 'PARSER -- runtime/scheme -b runtime/petite.boot -b runtime/scheme.boot --program app/icky-parser_app/icky-parser.so' > $package/provenance/entrypoint.txt
+$grease $aici/package-closure/manifest.grease $package > $package/material.tsv
+tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf $receipt/icky-native.tar.gz -C $package .
+sha256sum $receipt/icky-native.tar.gz > $receipt/package.sha256
+printf '%s\n' 'PACKAGE_COMPLETE (independent replay still required)' > $receipt/package-status.txt

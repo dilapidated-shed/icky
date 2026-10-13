@@ -135,6 +135,12 @@ v1/v2 remain unchanged. This prerequisite needs its own exact-head
 qualification and actual ICK consumption with preprocessing and bypass
 controls.
 
+[Native package qualification](packaging/README.md) separately archives the
+compiled parser, pinned runtime/boot/support/ELF material and owned/tool source
+snapshots, then executes the original archive from an unrelated consumer
+workspace. Source-test receipts and complete delivered-package acceptance are
+separate evidence.
+
 ## Mathematical glyph preservation
 
 The mathematical glyphs `÷ × √ ² ³ ≠ ≟ λ ∞ − –` are preserved distinctly. Mathematical minus and en dash are separate tokens. This adds surface identity only: meaning, precedence, and normalization remain downstream.
