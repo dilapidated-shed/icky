@@ -98,7 +98,7 @@ jobs:
           cat "build/qualification/located-$(git rev-parse HEAD)/status.txt"
 
       - name: Package complete parser, runtime and source material
-        shell: ${{ github.workspace }}/.grease-runtime/grease {0}
+        shell: .grease-runtime/grease {0}
         run: |
           var root = ENV.GITHUB_WORKSPACE
           var revision = $(git -C $root rev-parse HEAD)
@@ -176,7 +176,7 @@ jobs:
           test -s evidence/receipt/idric-executable.sha256
 
       - name: Independently execute complete archived package from unrelated context
-        shell: ${{ github.workspace }}/.grease-runtime/grease {0}
+        shell: .grease-runtime/grease {0}
         run: |
           var root = ENV.GITHUB_WORKSPACE
           var revision = $(git -C $root rev-parse HEAD)
