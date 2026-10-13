@@ -1,0 +1,42 @@
+# Producer vs independent consumer: actual ICKY parser executable and typed AST
+nonempty	ICKY-RECEIPT-SOURCE	evidence/receipt/icky-source-sha.txt
+nonempty	ICKY-RECEIPT-TOOLCHAIN	evidence/receipt/idric-source-sha-declared.txt
+nonempty	ICKY-RECEIPT-COMPILER-HASH	evidence/receipt/idric-executable.sha256
+nonempty	ICKY-RECEIPT-TEST-HASHES	evidence/receipt/executables.sha256
+nonempty	ICKY-RECEIPT-PARSER-EXEC	evidence/receipt/build/exec/icky-parser
+nonempty	ICKY-RECEIPT-TEST-EXEC	evidence/receipt/build/exec/icky-tests
+nonempty	ICKY-RECEIPT-LIBRARY-BUILD	evidence/receipt/icky-build.log
+nonempty	ICKY-RECEIPT-TESTS-BUILD	evidence/receipt/tests-build.log
+nonempty	ICKY-RECEIPT-PARSER-BUILD	evidence/receipt/parser-build.log
+contains	ICKY-PARSER-EXEC-BUILT	evidence/receipt/parser-build.log	Now compiling the executable: icky-parser
+contains	ICKY-TEST-EXEC-BUILT	evidence/receipt/tests-build.log	Now compiling the executable: icky-tests
+contains	ICKY-GROUP-SPAN-PASS	evidence/receipt/icky-tests.log	ok: group retains full parentheses separately from inner AST
+contains	ICKY-UNICODE-SPAN-PASS	evidence/receipt/icky-tests.log	ok: source offsets continue to count Unicode characters
+contains	ICKY-ERASURE-PASS	evidence/receipt/icky-tests.log	ok: located erasure exactly matches legacy parse and warnings
+contains	ICKY-ALIAS-PASS	evidence/receipt/icky-tests.log	ok: compatibility token retains its actual written span
+contains	ICKY-C-ARROW-REFUSAL	evidence/receipt/icky-tests.log	ok: located invalid C thin-arrow matches legacy
+contains	ICKY-STRUCTURED-FAILURE	evidence/receipt/icky-tests.log	ok: invalid source produces only deterministic fatal protocol records
+contains	ICKY-TYPE-OPAQUE-NAME	evidence/receipt/type-refusals.log	ArbitraryName.idr rejected at its intended type boundary
+contains	ICKY-TYPE-OPAQUE-EXPR	evidence/receipt/type-refusals.log	InvalidExpression.idr rejected at its intended type boundary
+contains	ICKY-PROTOCOL-PASS	evidence/receipt/parser-protocol.log	ICKY parser protocol: identity, UTF-8, warning and rejection PASS
+contains	ICKY-V2-SPELLING-PASS	evidence/receipt/icky-tests.log	ok: v2 preserves literal 010 despite natural value 10 after Unicode glyph
+contains	ICKY-V2-MISMATCH-REFUSED	evidence/receipt/icky-tests.log	ok: v2 rejects a source/AST spelling or span mismatch
+contains	ICKY-V2-PROTOCOL-PASS	evidence/receipt/parser-protocol.log	ICKY parser v2: written numeral and Unicode character spans PASS
+contains	ICKY-SOURCE-IDENTITY	evidence/receipt/icky-tests.log	ok: source binding retains the exact parser input
+contains	ICKY-SOURCE-NUMERAL	evidence/receipt/icky-tests.log	ok: source protocol preserves leading zeroes with decimal value
+contains	ICKY-SOURCE-NUMERAL-DISTINCT	evidence/receipt/icky-tests.log	ok: source protocol distinguishes equal-valued written numerals
+contains	ICKY-SOURCE-BYTE-SPANS	evidence/receipt/icky-tests.log	ok: source protocol separates glyph character and UTF-8 byte spans
+contains	ICKY-SOURCE-TWO-BYTE	evidence/receipt/icky-tests.log	ok: source protocol retains two-byte multiplication glyph intervals
+contains	ICKY-SOURCE-ALIAS	evidence/receipt/icky-tests.log	ok: source protocol retains written aliases and warning bytes
+contains	ICKY-SOURCE-FOUR-BYTE	evidence/receipt/icky-tests.log	ok: source protocol binds comments and four-byte Unicode to later spans
+contains	ICKY-SOURCE-CRLF	evidence/receipt/icky-tests.log	ok: source protocol preserves tabs and CRLF without normalization
+contains	ICKY-SOURCE-REFUSAL	evidence/receipt/icky-tests.log	ok: source protocol refusal contains input identity and no successful AST
+contains	ICKY-SOURCE-NEIGHBOR-REFUSAL	evidence/receipt/icky-tests.log	ok: source protocol refuses an unsupported neighboring arrow
+contains	ICKY-SOURCE-EXEC-IDENTITY	evidence/receipt/icky-tests.log	ok: actual v3 executable reports its source-preserving protocol identity
+contains	ICKY-SOURCE-EXEC-POSITIVE	evidence/receipt/icky-tests.log	ok: actual v3 executable retains exact input bytes numeral spelling and byte spans
+contains	ICKY-SOURCE-EXEC-NEGATIVE	evidence/receipt/icky-tests.log	ok: actual v3 executable refuses malformed syntax with nonzero exit
+contains	ICKY-SOURCE-EXEC-MISSING	evidence/receipt/icky-tests.log	ok: actual v3 executable refuses missing input with nonzero exit
+contains	ICKY-PRODUCER-LOCAL-PASS	evidence/receipt/status.txt	LOCAL_PASS (AICI acceptance still required)
+not_contains	ICKY-NO-POSITIVE-FAILURES	evidence/receipt/icky-tests.log	FAIL:
+not_contains	ICKY-NO-TYPE-FAILURES	evidence/receipt/type-refusals.log	FAIL:
+not_contains	ICKY-NO-PROTOCOL-FAILURES	evidence/receipt/parser-protocol.log	FAIL:

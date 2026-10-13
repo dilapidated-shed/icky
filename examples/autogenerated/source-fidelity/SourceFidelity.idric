@@ -1,0 +1,15 @@
+module SourceFidelity
+
+import SourceProtocol
+
+-- The imported parser is in the explicit .idr compatibility stratum and
+-- currently has a covering contract. This example keeps that contract.
+covering
+main : IO ()
+main =
+  case parseSourceLocated "x ← 010" of
+    Left failure ⇒ putStrLn (show failure)
+    Right bound_source ⇒
+      case renderSourceLocated bound_source of
+        Left failure ⇒ putStrLn (show failure)
+        Right records ⇒ putStr records

@@ -1,0 +1,22 @@
+package icky-parser
+
+version = 0.1.0
+brief = "Versioned located syntax-tree producer for ICK"
+sourcedir = "src"
+
+modules = Source,
+          Glyph,
+          Name,
+          Decimal,
+          Diagnostic,
+          Token,
+          Scan,
+          Syntax,
+          Located,
+          Parse,
+          Protocol,
+          SourceProtocol,
+          Driver
+
+main = Driver
+executable = icky-parser

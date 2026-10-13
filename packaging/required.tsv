@@ -1,0 +1,16 @@
+app/icky-parser_app/icky-parser.so	755
+app/icky-parser_app/libidris2_support.so	644
+runtime/scheme	755
+runtime/petite.boot	644
+runtime/scheme.boot	644
+runtime/elf/ld-linux-x86-64.so.2	755
+runtime/elf/libc.so.6	755
+runtime/elf/libm.so.6	644
+launch.grease	644
+sources/icky.tar	644
+sources/idric.tar	644
+sources/chez.tar.gz	644
+provenance/icky-source.txt	644
+provenance/idric-source.txt	644
+provenance/repositories.tsv	644
+provenance/gitlink-counts.tsv	644

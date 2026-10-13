@@ -2,12 +2,14 @@ module Token
 
 import Diagnostic
 import Glyph
+import Name
+import Source
 
 %default total
 
 public export
 data TokenKind
-  = TName String
+  = TName Name
   | TNatural Nat
   | TGlyph Glyph
   | TLParen
@@ -38,7 +40,7 @@ Eq Token where
 
 public export
 Show TokenKind where
-  show (TName name) = "name " ++ show name
+  show (TName name) = "name " ++ show (nameText name)
   show (TNatural n) = "natural " ++ show n
   show (TGlyph glyph) = "glyph " ++ show glyph
   show TLParen = "("
